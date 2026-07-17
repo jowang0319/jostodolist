@@ -193,9 +193,9 @@ function CheckoutModal({ item, onClose, onArchive, onRef }) {
     <Modal title="Mark complete" onClose={onClose}>
       <p style={{color:T.textSub,fontSize:15,marginBottom:16}}>Done with <strong style={{color:T.text}}>"{item.text}"</strong>?</p>
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
-        <button onClick={onArchive} style={bS(T.bgInput,T.textSub)}>Archive it — I may want to look back</button>
+        <button onClick={onArchive} style={bS(T.greenBg,T.green)}>✓ Archive it (with optional note)</button>
         <div style={{borderTop:`1px solid ${T.border}`,paddingTop:12}}>
-          <p style={{color:T.textSub,fontSize:13,marginBottom:8}}>Save to Reference tab (optional URL + note)</p>
+          <p style={{color:T.textSub,fontSize:13,marginBottom:8}}>Save to Reference tab instead (optional URL + note)</p>
           <input placeholder="URL (optional)" value={url} onChange={e=>setUrl(e.target.value)} style={iS}/>
           <input placeholder="Note (optional)" value={note} onChange={e=>setNote(e.target.value)} style={{...iS,marginTop:8}}/>
           <button onClick={()=>onRef(url,note)} style={bS(T.accentBg,T.accent)}>Add to Reference & Archive</button>
@@ -615,6 +615,11 @@ function ArchiveTab({ items, onDelete }) {
                   <div style={{display:"flex",alignItems:"flex-start",gap:8,flexWrap:"wrap"}}>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontSize:15,textDecoration:"line-through",color:T.textMuted,lineHeight:1.5}}>{label}</div>
+                      {item.archiveNote && (
+                        <div style={{marginTop:6,fontSize:13,color:T.textSub,background:T.bgInput,borderRadius:6,padding:"6px 10px",lineHeight:1.5,fontStyle:"italic"}}>
+                          📝 {item.archiveNote}
+                        </div>
+                      )}
                       {item.source && (
                         <div style={{marginTop:5}}>
                           <span style={{fontSize:11,fontWeight:600,borderRadius:20,padding:"2px 9px",background:sc.bg,color:sc.text,border:`1px solid ${sc.border}`}}>{item.source}</span>
@@ -633,6 +638,30 @@ function ArchiveTab({ items, onDelete }) {
         );
       })}
     </div>
+  );
+}
+
+// ─── Archive with Note Modal ──────────────────────────────────────────────────
+function ArchiveNoteModal({ label, onConfirm, onClose }) {
+  const [note, setNote] = useState("");
+  return (
+    <Modal title="Archive this item" onClose={onClose}>
+      <p style={{fontSize:14,color:T.textSub,marginBottom:14}}>
+        Archiving <strong style={{color:T.text}}>"{label}"</strong>
+      </p>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        <textarea
+          autoFocus
+          placeholder="Add a note (optional) — why you're archiving, what you learned, next steps…"
+          value={note}
+          onChange={e=>setNote(e.target.value)}
+          rows={4}
+          style={{...iS,resize:"vertical",lineHeight:1.6,fontFamily:"inherit"}}
+        />
+        <button onClick={()=>onConfirm(note.trim())} style={{background:T.green,color:"#fff",border:"none",borderRadius:8,padding:"11px",cursor:"pointer",fontWeight:600,fontSize:15}}>✓ Archive</button>
+        <button onClick={onClose} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:8,color:T.textMuted,padding:"9px",cursor:"pointer",fontSize:14}}>Cancel</button>
+      </div>
+    </Modal>
   );
 }
 
@@ -744,6 +773,7 @@ function App() {
   const [tab,setTab]=useState("todos");
   const [modal,setModal]=useState(null);
   const [checkoutItem,setCheckoutItem]=useState(null);
+  const [archiveTarget,setArchiveTarget]=useState(null); // {item, source, onConfirm}
   const [editTalking,setEditTalking]=useState(null);
   const [editTodo,setEditTodo]=useState(null);
   const [editRecurring,setEditRecurring]=useState(null);
@@ -769,13 +799,24 @@ function App() {
   const openCheckout = (item) => setCheckoutItem(item);
   const finishCheckout = (item,action,url,note) => {
     setCheckoutItem(null);
-    update(d=>{
-      const todos=d.todos.filter(t=>t.id!==item.id);
-      let archive=d.archive, refs=d.refs;
-      if(action==="archive"||action==="ref") archive=[...archive,{...item,archivedAt:new Date().toISOString(),source:"To-Do"}];
-      if(action==="ref") refs=[...refs,{id:uid(),title:item.text,url:url||"",note:note||"",addedAt:new Date().toISOString()}];
-      return {...d,todos,archive,refs};
-    });
+    if (action==="archive") {
+      setArchiveTarget({
+        label: item.text,
+        onConfirm: (archiveNote) => {
+          update(d=>({...d, todos:d.todos.filter(t=>t.id!==item.id), archive:[...d.archive,{...item,archivedAt:new Date().toISOString(),source:"To-Do",archiveNote}]}));
+          setArchiveTarget(null);
+        }
+      });
+    } else if (action==="ref") {
+      update(d=>{
+        const todos=d.todos.filter(t=>t.id!==item.id);
+        const archive=[...d.archive,{...item,archivedAt:new Date().toISOString(),source:"To-Do"}];
+        const refs=[...d.refs,{id:uid(),title:item.text,url:url||"",note:note||"",addedAt:new Date().toISOString()}];
+        return {...d,todos,archive,refs};
+      });
+    } else {
+      update(d=>({...d,todos:d.todos.filter(t=>t.id!==item.id)}));
+    }
   };
   const saveRecurring = (item) => update(d=>{ const ex=d.recurring.find(r=>r.id===item.id); return {...d,recurring:ex?d.recurring.map(r=>r.id===item.id?item:r):[...d.recurring,item]}; });
   const doneRecurring = (item) => update(d=>({...d,recurring:d.recurring.map(r=>r.id===item.id?{...r,lastDone:new Date().toISOString()}:r)}));
@@ -783,10 +824,22 @@ function App() {
   const reorderRecurring = (next) => update(d=>({...d,recurring:next}));
   const saveTalking = (item) => update(d=>{ const ex=d.talking.find(t=>t.id===item.id); return {...d,talking:ex?d.talking.map(t=>t.id===item.id?item:t):[...d.talking,item]}; });
   const delTalking = (id) => update(d=>({...d,talking:d.talking.filter(t=>t.id!==id)}));
-  const archiveTalking = (item) => update(d=>({...d, talking:d.talking.filter(t=>t.id!==item.id), archive:[...d.archive,{id:uid(),text:item.topic,archivedAt:new Date().toISOString(),source:"Talking Points"}]}));
+  const archiveTalking = (item) => setArchiveTarget({
+    label: item.topic,
+    onConfirm: (archiveNote) => {
+      update(d=>({...d, talking:d.talking.filter(t=>t.id!==item.id), archive:[...d.archive,{id:uid(),text:item.topic,archivedAt:new Date().toISOString(),source:"Talking Points",archiveNote}]}));
+      setArchiveTarget(null);
+    }
+  });
   const saveRef = (item) => update(d=>{ const ex=d.refs.find(r=>r.id===item.id); return {...d,refs:ex?d.refs.map(r=>r.id===item.id?item:r):[...d.refs,item]}; });
   const delRef = (id) => update(d=>({...d,refs:d.refs.filter(r=>r.id!==id)}));
-  const archiveRef = (item) => update(d=>({...d, refs:d.refs.filter(r=>r.id!==item.id), archive:[...d.archive,{id:uid(),text:item.title,archivedAt:new Date().toISOString(),source:"Reference"}]}));
+  const archiveRef = (item) => setArchiveTarget({
+    label: item.title,
+    onConfirm: (archiveNote) => {
+      update(d=>({...d, refs:d.refs.filter(r=>r.id!==item.id), archive:[...d.archive,{id:uid(),text:item.title,archivedAt:new Date().toISOString(),source:"Reference",archiveNote}]}));
+      setArchiveTarget(null);
+    }
+  });
 
   const totalOverdue = data.todos.filter(t=>t.deadline&&isOverdue(t.deadline)).length + data.recurring.filter(r=>isOverdue(nextOccurrence(r))).length;
 
@@ -978,6 +1031,7 @@ function App() {
         )}
       </div>
 
+      {archiveTarget && <ArchiveNoteModal label={archiveTarget.label} onConfirm={archiveTarget.onConfirm} onClose={()=>setArchiveTarget(null)}/>}
       {showChangePin && <ChangePinModal onClose={()=>setShowChangePin(false)}/>}
       {modal?.type==="todo"      && <TodoForm      onClose={()=>setModal(null)} onSave={saveTodo}/>}
       {modal?.type==="recurring" && <RecurringForm onClose={()=>setModal(null)} onSave={saveRecurring}/>}
