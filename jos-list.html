@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jo's List</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:#FAF8F4;font-family:'Inter',system-ui,sans-serif;color:#2C2416;}
+    input,select,textarea,button{font-family:inherit;}
+    ::-webkit-scrollbar{width:6px;}::-webkit-scrollbar-track{background:#FAF8F4;}::-webkit-scrollbar-thumb{background:#E4DDD4;border-radius:3px;}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+// ─── localStorage ─────────────────────────────────────────────────────────────
+const KEY = "jos-list-v1";
+const load = () => { try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; } catch { return null; } };
+const save = (d) => { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch {} };
+const DEFAULT = { recurring:[], todos:[], talking:[], archive:[], refs:[] };
+let _id = Date.now();
+const uid = () => String(++_id);
+
+// ─── Theme ────────────────────────────────────────────────────────────────────
+const T = {
+  bg:"#FAF8F4", bgCard:"#FFFFFF", bgInput:"#F5F2ED", bgModal:"#FFFFFF",
+  border:"#E4DDD4", borderFocus:"#B8A99A",
+  text:"#2C2416", textSub:"#7A6E63", textMuted:"#B0A89E",
+  accent:"#5B6AF0", accentBg:"#EEF0FE",
+  green:"#2A7A4B", greenBg:"#E8F5EE",
+  red:"#B53A2A", redBg:"#FDECEA",
+  shadow:"0 1px 4px rgba(0,0,0,0.07)", shadowMd:"0 4px 20px rgba(0,0,0,0.10)",
+};
+
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const todayDate = () => new Date();
+const fmtDate = (d) => new Date(d).toLocaleDateString("en-US",{month:"short",day:"numeric"});
+const fmtDeadline = (d) => {
+  const now = new Date(); now.setHours(0,0,0,0);
+  const dd = new Date(d); dd.setHours(0,0,0,0);
+  const diff = Math.round((dd-now)/(1000*60*60*24));
+  if (diff < 0) return { label:`${Math.abs(diff)}d overdue`, overdue:true };
+  if (diff === 0) return { label:"Due today", overdue:true };
+  if (diff === 1) return { label:"Due tomorrow", overdue:false };
+  return { label:`Due ${fmtDate(d)}`, overdue:false };
+};
+const isOverdue = (d) => d && new Date(d) < todayDate();
+function nextOccurrence(item) {
+  const now = todayDate();
+  if (item.freq==="weekly") { const d=new Date(now); d.setDate(d.getDate()+((item.weekday-d.getDay()+7)%7||7)); return d; }
+  if (item.freq==="biweekly") { const base=item.lastDone?new Date(item.lastDone):new Date(now); const d=new Date(base); d.setDate(d.getDate()+14); return d; }
+  if (item.freq==="monthly") { const base=item.lastDone?new Date(item.lastDone):new Date(now); const d=new Date(base); d.setMonth(d.getMonth()+1); return d; }
+  return null;
+}
+
+// ─── Rich text renderer ───────────────────────────────────────────────────────
+function RichText({ text, style={} }) {
+  if (!text) return null;
+  const TOKEN = /(https?:\/\/[^\s]+|\*\*(.+?)\*\*|_(.+?)_|~~(.+?)~~)/g;
+  const parts = []; let last = 0, m; TOKEN.lastIndex = 0;
+  while ((m = TOKEN.exec(text)) !== null) {
+    if (m.index > last) parts.push({ type:"text", val:text.slice(last,m.index) });
+    if (m[0].startsWith("http")) parts.push({ type:"url", val:m[0] });
+    else if (m[0].startsWith("**")) parts.push({ type:"bold", val:m[2] });
+    else if (m[0].startsWith("_")) parts.push({ type:"italic", val:m[3] });
+    else if (m[0].startsWith("~~")) parts.push({ type:"strike", val:m[4] });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push({ type:"text", val:text.slice(last) });
+  return (
+    <span style={style}>
+      {parts.map((p,i) => {
+        if (p.type==="bold") return <strong key={i}>{p.val}</strong>;
+        if (p.type==="italic") return <em key={i}>{p.val}</em>;
+        if (p.type==="strike") return <s key={i}>{p.val}</s>;
+        if (p.type==="url") return <a key={i} href={p.val} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{display:"inline-flex",alignItems:"center",gap:3,background:T.accentBg,border:`1px solid ${T.accent}40`,borderRadius:5,padding:"1px 7px",color:T.accent,fontSize:"0.9em",fontWeight:500,textDecoration:"none",verticalAlign:"middle",maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          {p.val.replace(/^https?:\/\//,"").replace(/\/$/,"").slice(0,32)}
+        </a>;
+        return <span key={i}>{p.val}</span>;
+      })}
+    </span>
+  );
+}
+
+// ─── Icons ────────────────────────────────────────────────────────────────────
+const Icon = ({ n, size=16 }) => {
+  const paths = {
+    recurring:"M12 2v4l3-3 1.4 1.4L13 7.8A8 8 0 1 1 4.1 4.6L5.5 6A6 6 0 1 0 12 6V2z",
+    todo:"M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11",
+    talking:"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
+    archive:"M21 8v13H3V8M1 3h22v5H1zM10 12h4",
+    ref:"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71",
+    check:"M20 6L9 17l-5-5", trash:"M3 6h18M19 6l-1 14H6L5 6M9 6V4h6v2",
+    edit:"M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z",
+    x:"M18 6L6 18M6 6l12 12",
+    star:"M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
+    drag:"M8 6h1M8 12h1M8 18h1M14 6h1M14 12h1M14 18h1",
+  };
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={paths[n]}/></svg>;
+};
+
+// ─── DraggableList ────────────────────────────────────────────────────────────
+function DraggableList({ items, onReorder, renderItem }) {
+  const [dragging, setDragging] = useState(null);
+  const [over, setOver] = useState(null);
+  return (
+    <div>{items.map((item,idx)=>(
+      <div key={item.id} draggable
+        onDragStart={e=>{setDragging(idx);e.dataTransfer.effectAllowed="move";}}
+        onDragOver={e=>{e.preventDefault();setOver(idx);}}
+        onDrop={e=>{e.preventDefault();if(dragging!==null&&dragging!==idx){const n=[...items];const[m]=n.splice(dragging,1);n.splice(idx,0,m);onReorder(n);}setDragging(null);setOver(null);}}
+        onDragEnd={()=>{setDragging(null);setOver(null);}}
+        style={{opacity:dragging===idx?0.4:1,borderTop:over===idx&&dragging!==idx?`2px solid ${T.accent}`:"2px solid transparent",transition:"border-color .1s"}}>
+        {renderItem(item,idx)}
+      </div>
+    ))}</div>
+  );
+}
+
+// ─── Shared styles ────────────────────────────────────────────────────────────
+const iS = { background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,padding:"9px 13px",color:T.text,fontSize:15,width:"100%",boxSizing:"border-box",outline:"none" };
+const bS = (bg,color) => ({ background:bg,border:`1px solid ${color}30`,borderRadius:8,color,padding:"11px 14px",cursor:"pointer",width:"100%",textAlign:"left",fontSize:15,marginTop:4 });
+const iB = (bg,color) => ({ background:bg,border:`1px solid ${T.border}`,borderRadius:7,color,padding:"6px",cursor:"pointer",display:"flex",alignItems:"center",marginLeft:4 });
+const aB = { background:T.accent,border:"none",borderRadius:8,color:"#fff",padding:"9px 18px",cursor:"pointer",fontWeight:600,fontSize:15 };
+const cS = { display:"flex",alignItems:"center",gap:8,background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:12,padding:"13px 15px",marginBottom:9,boxShadow:T.shadow };
+const Empty = ({text}) => <div style={{color:T.textMuted,fontSize:15,textAlign:"center",padding:"48px 0"}}>{text}</div>;
+const DeadlineBadge = ({deadline}) => {
+  if (!deadline) return null;
+  const {label,overdue} = fmtDeadline(deadline);
+  return <span style={{fontSize:12,fontWeight:500,borderRadius:20,padding:"2px 9px",background:overdue?T.redBg:T.greenBg,color:overdue?T.red:T.green,whiteSpace:"nowrap",flexShrink:0}}>{label}</span>;
+};
+
+// ─── Modal ────────────────────────────────────────────────────────────────────
+function Modal({ title, onClose, children }) {
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(40,30,20,0.35)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}} onClick={onClose}>
+      <div style={{background:T.bgModal,border:`1px solid ${T.border}`,borderRadius:16,padding:"26px",width:"100%",maxWidth:520,boxShadow:T.shadowMd,maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+          <span style={{fontWeight:700,fontSize:17,color:T.text}}>{title}</span>
+          <button onClick={onClose} style={{background:"none",border:"none",color:T.textMuted,cursor:"pointer",padding:4}}><Icon n="x"/></button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─── Rich textarea with toolbar ───────────────────────────────────────────────
+function RichTextarea({ value, onChange, placeholder, rows=3, autoFocus=false, onKeyDown }) {
+  const ref = useRef(null);
+  const wrap = (before, after) => {
+    const el = ref.current; if (!el) return;
+    const start = el.selectionStart, end = el.selectionEnd;
+    const sel = value.slice(start,end) || "text";
+    const next = value.slice(0,start) + before + sel + after + value.slice(end);
+    onChange(next);
+    setTimeout(()=>{ el.focus(); el.setSelectionRange(start+before.length, start+before.length+sel.length); }, 0);
+  };
+  const tb = (label, action, title) => (
+    <button type="button" title={title} onClick={action} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:5,color:T.textSub,padding:"3px 8px",cursor:"pointer",fontSize:12,fontWeight:600,lineHeight:1}}>
+      {label}
+    </button>
+  );
+  return (
+    <div>
+      <div style={{display:"flex",gap:5,marginBottom:5,flexWrap:"wrap",alignItems:"center"}}>
+        {tb("B", ()=>wrap("**","**"), "Bold")}
+        {tb("I", ()=>wrap("_","_"), "Italic")}
+        {tb("S̶", ()=>wrap("~~","~~"), "Strikethrough")}
+        <span style={{fontSize:11,color:T.textMuted,marginLeft:4}}>or type **bold** _italic_ ~~strike~~</span>
+      </div>
+      <textarea ref={ref} autoFocus={autoFocus} placeholder={placeholder} value={value} onChange={e=>onChange(e.target.value)} onKeyDown={onKeyDown} rows={rows} style={{...iS,resize:"vertical",lineHeight:1.6,fontFamily:"inherit"}}/>
+    </div>
+  );
+}
+
+// ─── CheckoutModal ────────────────────────────────────────────────────────────
+function CheckoutModal({ item, onClose, onArchive, onRef }) {
+  const [url,setUrl]=useState(""); const [note,setNote]=useState("");
+  return (
+    <Modal title="Mark complete" onClose={onClose}>
+      <p style={{color:T.textSub,fontSize:15,marginBottom:16}}>Done with <strong style={{color:T.text}}>"{item.text}"</strong>?</p>
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        <button onClick={onArchive} style={bS(T.bgInput,T.textSub)}>Archive it — I may want to look back</button>
+        <div style={{borderTop:`1px solid ${T.border}`,paddingTop:12}}>
+          <p style={{color:T.textSub,fontSize:13,marginBottom:8}}>Save to Reference tab (optional URL + note)</p>
+          <input placeholder="URL (optional)" value={url} onChange={e=>setUrl(e.target.value)} style={iS}/>
+          <input placeholder="Note (optional)" value={note} onChange={e=>setNote(e.target.value)} style={{...iS,marginTop:8}}/>
+          <button onClick={()=>onRef(url,note)} style={bS(T.accentBg,T.accent)}>Add to Reference & Archive</button>
+        </div>
+        <button onClick={onClose} style={bS(T.bgInput,T.textMuted)}>Just delete it</button>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── TodoForm ─────────────────────────────────────────────────────────────────
+function TodoForm({ onSave, onClose, existing }) {
+  const [text,setText]=useState(existing?.text||"");
+  const [deadline,setDeadline]=useState(existing?.deadline||"");
+  const handleSave = () => {
+    if (!text.trim()) return;
+    onSave({id:existing?.id||uid(),text:text.trim(),deadline:deadline||null,addedAt:existing?.addedAt||new Date().toISOString()});
+    onClose();
+  };
+  return (
+    <Modal title={existing?"Edit task":"Add task"} onClose={onClose}>
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        <RichTextarea autoFocus placeholder="What needs to be done?" value={text} onChange={setText} rows={3} onKeyDown={e=>{if(e.key==="Enter"&&e.shiftKey){e.preventDefault();handleSave();}}}/>
+        <label style={{fontSize:13,color:T.textSub}}>
+          Deadline <span style={{color:T.textMuted}}>(optional)</span>
+          <input type="date" value={deadline||""} onChange={e=>setDeadline(e.target.value)} style={{...iS,marginTop:4,colorScheme:"light"}}/>
+        </label>
+        {deadline && <button onClick={()=>setDeadline("")} style={{background:"none",border:"none",color:T.textMuted,fontSize:13,cursor:"pointer",textAlign:"left",padding:0}}>✕ Remove deadline</button>}
+        <button disabled={!text.trim()} onClick={handleSave} style={{background:T.accent,color:"#fff",border:"none",borderRadius:8,padding:"11px",cursor:"pointer",fontWeight:600,fontSize:15}}>{existing?"Save changes":"Add task"}</button>
+        <span style={{fontSize:12,color:T.textMuted,textAlign:"center"}}>Shift + Enter to save</span>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── RecurringForm ────────────────────────────────────────────────────────────
+function RecurringForm({ onSave, onClose, existing }) {
+  const [text,setText]=useState(existing?.text||"");
+  const [freq,setFreq]=useState(existing?.freq||"weekly");
+  const [weekday,setWeekday]=useState(existing?.weekday??1);
+  const [deadline,setDeadline]=useState(existing?.deadline||"");
+  const handleSave = () => {
+    if (!text.trim()) return;
+    onSave({id:existing?.id||uid(),text:text.trim(),freq,weekday,lastDone:existing?.lastDone||null,deadline:deadline||null});
+    onClose();
+  };
+  return (
+    <Modal title={existing?"Edit reminder":"Add recurring reminder"} onClose={onClose}>
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        <RichTextarea autoFocus placeholder="What needs to happen?" value={text} onChange={setText} rows={2} onKeyDown={e=>{if(e.key==="Enter"&&e.shiftKey){e.preventDefault();handleSave();}}}/>
+        <select value={freq} onChange={e=>setFreq(e.target.value)} style={iS}>
+          <option value="weekly">Weekly</option>
+          <option value="biweekly">Every 2 weeks</option>
+          <option value="monthly">Monthly (same weekday)</option>
+        </select>
+        <select value={weekday} onChange={e=>setWeekday(Number(e.target.value))} style={iS}>
+          {DAYS.map((d,i)=><option key={d} value={i}>{d}</option>)}
+        </select>
+        <label style={{fontSize:13,color:T.textSub}}>
+          Hard deadline <span style={{color:T.textMuted}}>(optional)</span>
+          <input type="date" value={deadline||""} onChange={e=>setDeadline(e.target.value)} style={{...iS,marginTop:4,colorScheme:"light"}}/>
+        </label>
+        {deadline && <button onClick={()=>setDeadline("")} style={{background:"none",border:"none",color:T.textMuted,fontSize:13,cursor:"pointer",textAlign:"left",padding:0}}>✕ Remove deadline</button>}
+        <button disabled={!text.trim()} onClick={handleSave} style={{background:T.accent,color:"#fff",border:"none",borderRadius:8,padding:"11px",cursor:"pointer",fontWeight:600,fontSize:15}}>{existing?"Save changes":"Add reminder"}</button>
+        <span style={{fontSize:12,color:T.textMuted,textAlign:"center"}}>Shift + Enter to save</span>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── TalkingForm ──────────────────────────────────────────────────────────────
+function TalkingForm({ onAdd, onClose, existing }) {
+  const [topic,setTopic]=useState(existing?.topic||"");
+  const [points,setPoints]=useState(existing?.points||[""]);
+  const addPoint = () => setPoints(p=>[...p,""]);
+  const setPoint = (i,v) => setPoints(p=>p.map((x,j)=>j===i?v:x));
+  const removePoint = (i) => setPoints(p=>p.filter((_,j)=>j!==i));
+  return (
+    <Modal title={existing?"Edit talking points":"New talking points"} onClose={onClose}>
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        <input autoFocus placeholder="Topic / meeting name" value={topic} onChange={e=>setTopic(e.target.value)} style={iS}/>
+        <div style={{fontSize:12,color:T.textMuted,marginTop:-4}}>Use **bold**, _italic_, ~~strikethrough~~ in points</div>
+        {points.map((p,i)=>(
+          <div key={i} style={{display:"flex",gap:6,alignItems:"flex-start"}}>
+            <div style={{flex:1}}>
+              <RichTextarea placeholder={`Point ${i+1}`} value={p} onChange={v=>setPoint(i,v)} rows={2}
+                onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();addPoint();}}}/>
+            </div>
+            {points.length>1 && <button onClick={()=>removePoint(i)} style={{background:"none",border:"none",color:T.textMuted,cursor:"pointer",marginTop:28,flexShrink:0}}><Icon n="x" size={14}/></button>}
+          </div>
+        ))}
+        <button onClick={addPoint} style={{background:"none",border:`1px dashed ${T.border}`,borderRadius:8,color:T.textMuted,padding:"9px",cursor:"pointer",fontSize:14}}>+ Add point</button>
+        <button disabled={!topic.trim()} onClick={()=>{onAdd({id:existing?.id||uid(),topic:topic.trim(),points:points.filter(p=>p.trim()),done:false});onClose();}} style={{background:T.accent,color:"#fff",border:"none",borderRadius:8,padding:"11px",cursor:"pointer",fontWeight:600,fontSize:15}}>{existing?"Save changes":"Add talking points"}</button>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── RefForm ─────────────────────────────────────────────────────────────────
+function RefForm({ onSave, onClose, existing }) {
+  const [title,setTitle]=useState(existing?.title||"");
+  const [url,setUrl]=useState(existing?.url||"");
+  const [note,setNote]=useState(existing?.note||"");
+  const handleSave = () => {
+    if (!title.trim()) return;
+    onSave({id:existing?.id||uid(),title:title.trim(),url,note,addedAt:existing?.addedAt||new Date().toISOString()});
+    onClose();
+  };
+  return (
+    <Modal title={existing?"Edit reference":"Add reference"} onClose={onClose}>
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        <input autoFocus placeholder="Title" value={title} onChange={e=>setTitle(e.target.value)} style={iS}/>
+        <input placeholder="URL (optional)" value={url} onChange={e=>setUrl(e.target.value)} style={iS}/>
+        <textarea placeholder="Note (optional)" value={note} onChange={e=>setNote(e.target.value)} rows={3} style={{...iS,resize:"vertical",lineHeight:1.6}}/>
+        <button disabled={!title.trim()} onClick={handleSave} style={{background:T.accent,color:"#fff",border:"none",borderRadius:8,padding:"11px",cursor:"pointer",fontWeight:600,fontSize:15}}>{existing?"Save changes":"Save"}</button>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── App ─────────────────────────────────────────────────────────────────────
+function App() {
+  const [data,setData]=useState(DEFAULT);
+  const [loaded,setLoaded]=useState(false);
+  const [tab,setTab]=useState("todos");
+  const [modal,setModal]=useState(null);
+  const [checkoutItem,setCheckoutItem]=useState(null);
+  const [editTalking,setEditTalking]=useState(null);
+  const [editTodo,setEditTodo]=useState(null);
+  const [editRecurring,setEditRecurring]=useState(null);
+  const [editRef,setEditRef]=useState(null);
+
+  useEffect(()=>{ const d=load(); if(d) setData(d); setLoaded(true); },[]);
+  const update = useCallback((fn)=>{ setData(prev=>{ const next=fn(prev); save(next); return next; }); },[]);
+
+  if (!loaded) return <div style={{background:T.bg,minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",color:T.textMuted}}>Loading…</div>;
+
+  const saveTodo = (item) => update(d=>{ const ex=d.todos.find(t=>t.id===item.id); return {...d,todos:ex?d.todos.map(t=>t.id===item.id?item:t):[...d.todos,item]}; });
+  const reorderTodos = (next) => update(d=>({...d,todos:next}));
+  const openCheckout = (item) => setCheckoutItem(item);
+  const finishCheckout = (item,action,url,note) => {
+    setCheckoutItem(null);
+    update(d=>{
+      const todos=d.todos.filter(t=>t.id!==item.id);
+      let archive=d.archive, refs=d.refs;
+      if(action==="archive"||action==="ref") archive=[...archive,{...item,archivedAt:new Date().toISOString()}];
+      if(action==="ref") refs=[...refs,{id:uid(),title:item.text,url:url||"",note:note||"",addedAt:new Date().toISOString()}];
+      return {...d,todos,archive,refs};
+    });
+  };
+  const saveRecurring = (item) => update(d=>{ const ex=d.recurring.find(r=>r.id===item.id); return {...d,recurring:ex?d.recurring.map(r=>r.id===item.id?item:r):[...d.recurring,item]}; });
+  const doneRecurring = (item) => update(d=>({...d,recurring:d.recurring.map(r=>r.id===item.id?{...r,lastDone:new Date().toISOString()}:r)}));
+  const delRecurring = (id) => update(d=>({...d,recurring:d.recurring.filter(r=>r.id!==id)}));
+  const reorderRecurring = (next) => update(d=>({...d,recurring:next}));
+  const saveTalking = (item) => update(d=>{ const ex=d.talking.find(t=>t.id===item.id); return {...d,talking:ex?d.talking.map(t=>t.id===item.id?item:t):[...d.talking,item]}; });
+  const delTalking = (id) => update(d=>({...d,talking:d.talking.filter(t=>t.id!==id)}));
+  const saveRef = (item) => update(d=>{ const ex=d.refs.find(r=>r.id===item.id); return {...d,refs:ex?d.refs.map(r=>r.id===item.id?item:r):[...d.refs,item]}; });
+  const delRef = (id) => update(d=>({...d,refs:d.refs.filter(r=>r.id!==id)}));
+
+  const totalOverdue = data.todos.filter(t=>t.deadline&&isOverdue(t.deadline)).length + data.recurring.filter(r=>isOverdue(nextOccurrence(r))).length;
+
+  const tabs=[
+    {id:"todos",label:"To-Do",icon:"todo"},
+    {id:"recurring",label:"Recurring",icon:"recurring"},
+    {id:"talking",label:"Talking",icon:"talking"},
+    {id:"archive",label:"Archive",icon:"archive"},
+    {id:"refs",label:"Reference",icon:"ref"},
+  ];
+
+  return (
+    <div style={{background:T.bg,minHeight:"100vh",fontFamily:"'Inter',system-ui,sans-serif",color:T.text}}>
+      {/* Header */}
+      <div style={{borderBottom:`1px solid ${T.border}`,padding:"20px 28px 0",maxWidth:780,margin:"0 auto"}}>
+        <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:18}}>
+          <span style={{fontSize:22,fontWeight:700,letterSpacing:-0.5}}>Jo's List</span>
+          {totalOverdue>0 && <span style={{background:T.redBg,color:T.red,fontSize:12,borderRadius:20,padding:"2px 11px",fontWeight:600}}>{totalOverdue} overdue</span>}
+        </div>
+        <div style={{display:"flex",gap:2,flexWrap:"wrap"}}>
+          {tabs.map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)} style={{background:"none",border:"none",cursor:"pointer",padding:"9px 16px",borderBottom:tab===t.id?`2px solid ${T.accent}`:"2px solid transparent",color:tab===t.id?T.accent:T.textSub,fontSize:15,fontWeight:tab===t.id?600:400,display:"flex",alignItems:"center",gap:6,transition:"color .15s"}}>
+              <Icon n={t.icon} size={14}/>{t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{maxWidth:780,margin:"0 auto",padding:"28px"}}>
+
+        {/* TO-DO */}
+        {tab==="todos" && (
+          <div>
+            <div style={{display:"flex",justifyContent:"flex-end",marginBottom:22}}>
+              <button onClick={()=>setModal({type:"todo"})} style={aB}>+ Add task</button>
+            </div>
+            {data.todos.length===0 && <Empty text="No tasks yet — add one above."/>}
+            <DraggableList items={data.todos} onReorder={reorderTodos} renderItem={(item)=>(
+              <div style={cS}>
+                <span style={{color:T.border,cursor:"grab",flexShrink:0,display:"flex",alignItems:"center"}}><Icon n="drag" size={14}/></span>
+                <div style={{flex:1,minWidth:0}}>
+                  <RichText text={item.text} style={{fontSize:15,display:"block",lineHeight:1.5}}/>
+                  {item.deadline && <div style={{marginTop:4}}><DeadlineBadge deadline={item.deadline}/></div>}
+                </div>
+                <button onClick={()=>setEditTodo(item)} title="Edit" style={iB(T.accentBg,T.accent)}><Icon n="edit" size={14}/></button>
+                <button onClick={()=>openCheckout(item)} title="Complete" style={iB(T.greenBg,T.green)}><Icon n="check" size={14}/></button>
+                <button onClick={()=>update(d=>({...d,todos:d.todos.filter(t=>t.id!==item.id)}))} title="Delete" style={iB(T.redBg,T.red)}><Icon n="trash" size={14}/></button>
+              </div>
+            )}/>
+          </div>
+        )}
+
+        {/* RECURRING */}
+        {tab==="recurring" && (
+          <div>
+            <div style={{display:"flex",justifyContent:"flex-end",marginBottom:22}}>
+              <button onClick={()=>setModal({type:"recurring"})} style={aB}>+ New reminder</button>
+            </div>
+            {data.recurring.length===0 && <Empty text="No recurring reminders yet."/>}
+            <DraggableList items={data.recurring} onReorder={reorderRecurring} renderItem={(item)=>{
+              const next=nextOccurrence(item); const od=isOverdue(next);
+              return (
+                <div style={{...cS,borderLeft:`3px solid ${od?T.red:T.border}`}}>
+                  <span style={{color:T.border,cursor:"grab",flexShrink:0,display:"flex",alignItems:"center"}}><Icon n="drag" size={14}/></span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:15,marginBottom:4}}><RichText text={item.text}/></div>
+                    <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:6}}>
+                      <span style={{fontSize:12,color:od?T.red:T.textMuted}}>
+                        {item.freq==="weekly"?"Weekly":item.freq==="biweekly"?"Every 2 weeks":"Monthly"} · {DAYS[item.weekday]}
+                        {next && ` · ${od?"Overdue since":"Next"} ${fmtDate(next)}`}
+                      </span>
+                      {item.deadline && <DeadlineBadge deadline={item.deadline}/>}
+                    </div>
+                  </div>
+                  <button onClick={()=>setEditRecurring(item)} title="Edit" style={iB(T.accentBg,T.accent)}><Icon n="edit" size={14}/></button>
+                  <button onClick={()=>doneRecurring(item)} title="Mark done" style={iB(T.greenBg,T.green)}><Icon n="check" size={14}/></button>
+                  <button onClick={()=>delRecurring(item.id)} title="Delete" style={iB(T.redBg,T.red)}><Icon n="trash" size={14}/></button>
+                </div>
+              );
+            }}/>
+          </div>
+        )}
+
+        {/* TALKING POINTS */}
+        {tab==="talking" && (
+          <div>
+            <div style={{display:"flex",justifyContent:"flex-end",marginBottom:26}}>
+              <button onClick={()=>setModal({type:"talking"})} style={aB}>+ New topic</button>
+            </div>
+            {data.talking.length===0 && <Empty text="No talking points yet."/>}
+            {data.talking.length>0 && (
+              <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:12,padding:"18px 22px",marginBottom:32,boxShadow:T.shadow}}>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.12em",color:T.textMuted,textTransform:"uppercase",marginBottom:10}}>Agenda</div>
+                <ol style={{margin:0,paddingLeft:20}}>
+                  {data.talking.map((item,i)=>(
+                    <li key={item.id} style={{fontSize:15,color:T.accent,marginBottom:5,paddingLeft:4}}>
+                      <a href={`#topic-${item.id}`} style={{color:T.accent,textDecoration:"none",fontWeight:500}}
+                        onClick={e=>{e.preventDefault();document.getElementById(`topic-${item.id}`)?.scrollIntoView({behavior:"smooth"});}}>
+                        {item.topic}
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+            {data.talking.map((item,i)=>(
+              <div key={item.id} id={`topic-${item.id}`} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"22px 24px",marginBottom:20,boxShadow:T.shadow}}>
+                <div style={{display:"flex",alignItems:"flex-start",gap:14,marginBottom:16}}>
+                  <div style={{background:T.accentBg,color:T.accent,fontWeight:700,fontSize:13,borderRadius:8,padding:"5px 11px",flexShrink:0,marginTop:2,minWidth:36,textAlign:"center"}}>
+                    {String(i+1).padStart(2,"0")}
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:19,fontWeight:700,color:T.text,lineHeight:1.3}}><RichText text={item.topic}/></div>
+                  </div>
+                  <button onClick={()=>setEditTalking(item)} style={iB(T.accentBg,T.accent)}><Icon n="edit" size={14}/></button>
+                  <button onClick={()=>delTalking(item.id)} style={iB(T.redBg,T.red)}><Icon n="trash" size={14}/></button>
+                </div>
+                {item.points.length>0 && (
+                  <div style={{paddingLeft:50}}>
+                    {item.points.map((p,j)=>(
+                      <div key={j} style={{display:"flex",gap:10,marginBottom:10,alignItems:"flex-start"}}>
+                        <div style={{width:6,height:6,borderRadius:"50%",background:T.accent,opacity:0.35,flexShrink:0,marginTop:9}}/>
+                        <div style={{fontSize:15,color:T.textSub,lineHeight:1.7,flex:1,whiteSpace:"pre-wrap"}}><RichText text={p}/></div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ARCHIVE */}
+        {tab==="archive" && (
+          <div>
+            {data.archive.length===0 && <Empty text="Completed tasks will appear here."/>}
+            {[...data.archive].reverse().map(item=>(
+              <div key={item.id} style={{...cS,opacity:0.6}}>
+                <RichText text={item.text} style={{flex:1,fontSize:15,textDecoration:"line-through",color:T.textMuted}}/>
+                <span style={{fontSize:12,color:T.textMuted,flexShrink:0}}>{fmtDate(item.archivedAt)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* REFERENCE */}
+        {tab==="refs" && (
+          <div>
+            <div style={{display:"flex",justifyContent:"flex-end",marginBottom:22}}>
+              <button onClick={()=>setModal({type:"ref"})} style={aB}>+ Add reference</button>
+            </div>
+            {data.refs.length===0 && <Empty text="Saved references will appear here."/>}
+            {[...data.refs].reverse().map(item=>(
+              <div key={item.id} style={{...cS,flexDirection:"column",alignItems:"flex-start",gap:8,padding:"16px 18px"}}>
+                <div style={{display:"flex",width:"100%",alignItems:"center",gap:8}}>
+                  <Icon n="star" size={14}/>
+                  <span style={{flex:1,fontSize:15,fontWeight:600}}>{item.title}</span>
+                  <span style={{fontSize:12,color:T.textMuted}}>{fmtDate(item.addedAt)}</span>
+                  <button onClick={()=>setEditRef(item)} style={iB(T.accentBg,T.accent)}><Icon n="edit" size={14}/></button>
+                  <button onClick={()=>delRef(item.id)} style={iB(T.redBg,T.red)}><Icon n="trash" size={14}/></button>
+                </div>
+                {item.note && <span style={{fontSize:14,color:T.textSub,paddingLeft:22,whiteSpace:"pre-wrap",lineHeight:1.6}}>{item.note}</span>}
+                {item.url && (
+                  <a href={item.url} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,marginLeft:22,background:T.accentBg,border:`1px solid ${T.accent}30`,borderRadius:8,padding:"7px 14px",color:T.accent,fontSize:14,fontWeight:500,textDecoration:"none",maxWidth:"calc(100% - 22px)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    {item.url.replace(/^https?:\/\//,"").replace(/\/$/,"")}
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {modal?.type==="todo"      && <TodoForm      onClose={()=>setModal(null)} onSave={saveTodo}/>}
+      {modal?.type==="recurring" && <RecurringForm onClose={()=>setModal(null)} onSave={saveRecurring}/>}
+      {modal?.type==="talking"   && <TalkingForm   onClose={()=>setModal(null)} onAdd={saveTalking}/>}
+      {modal?.type==="ref"       && <RefForm       onClose={()=>setModal(null)} onSave={saveRef}/>}
+      {editTodo      && <TodoForm      existing={editTodo}      onClose={()=>setEditTodo(null)}      onSave={item=>{saveTodo(item);setEditTodo(null);}}/>}
+      {editRecurring && <RecurringForm existing={editRecurring} onClose={()=>setEditRecurring(null)} onSave={item=>{saveRecurring(item);setEditRecurring(null);}}/>}
+      {editTalking   && <TalkingForm   existing={editTalking}   onClose={()=>setEditTalking(null)}   onAdd={item=>{saveTalking(item);setEditTalking(null);}}/>}
+      {editRef       && <RefForm       existing={editRef}       onClose={()=>setEditRef(null)}       onSave={item=>{saveRef(item);setEditRef(null);}}/>}
+      {checkoutItem  && <CheckoutModal item={checkoutItem} onClose={()=>setCheckoutItem(null)} onArchive={()=>finishCheckout(checkoutItem,"archive")} onRef={(url,note)=>finishCheckout(checkoutItem,"ref",url,note)}/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
