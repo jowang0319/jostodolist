@@ -3,255 +3,202 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Jo — Portfolio</title>
+  <title>Jo's Space 🌙</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
-      --bg:        #F0EDE8;
-      --surface:   #E8E4DE;
-      --ink:       #1A1814;
-      --muted:     #7A7570;
-      --accent:    #2A52A0;
-      --accent-lt: #D6E0F5;
-      --radius:    10px;
-    }
-
-    html { font-size: 16px; }
-
     body {
-      background: var(--bg);
-      color: var(--ink);
-      font-family: 'Inter', sans-serif;
       min-height: 100vh;
       display: grid;
       place-items: center;
-      padding: 2rem 1rem;
-    }
-
-    .card {
-      background: #fff;
-      border-radius: 18px;
-      box-shadow: 0 4px 32px rgba(26,24,20,0.09);
-      max-width: 560px;
-      width: 100%;
+      font-family: 'Inter', sans-serif;
+      background: #0f0f1a;
       overflow: hidden;
     }
 
-    /* ── Hero strip ── */
-    .hero {
-      background: var(--ink);
-      color: #fff;
-      padding: 2.8rem 2.4rem 2.2rem;
+    /* animated starfield */
+    .stars {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .star {
+      position: absolute;
+      border-radius: 50%;
+      background: #fff;
+      animation: twinkle var(--d, 3s) ease-in-out infinite alternate;
+      opacity: 0;
+    }
+    @keyframes twinkle {
+      from { opacity: 0.1; transform: scale(1); }
+      to   { opacity: 0.9; transform: scale(1.4); }
+    }
+
+    /* blob glow */
+    .glow {
+      position: fixed;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.18;
+      pointer-events: none;
+      animation: drift 12s ease-in-out infinite alternate;
+    }
+    .glow-1 { background: #a855f7; top: -100px; left: -100px; }
+    .glow-2 { background: #3b82f6; bottom: -100px; right: -100px; animation-delay: -6s; }
+    @keyframes drift {
+      from { transform: translate(0, 0); }
+      to   { transform: translate(40px, 30px); }
+    }
+
+    /* card */
+    .card {
       position: relative;
+      z-index: 1;
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 24px;
+      padding: 2.8rem 2.4rem 2.4rem;
+      max-width: 420px;
+      width: calc(100% - 2rem);
+      text-align: center;
     }
 
-    .hero-eyebrow {
-      font-family: 'Inter', sans-serif;
-      font-size: 0.72rem;
-      font-weight: 500;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--accent-lt);
-      margin-bottom: 0.6rem;
+    .emoji-big {
+      font-size: 3.2rem;
+      line-height: 1;
+      margin-bottom: 1rem;
+      display: block;
+      animation: bob 3s ease-in-out infinite;
+    }
+    @keyframes bob {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(-6px); }
     }
 
-    .hero h1 {
-      font-family: 'DM Serif Display', serif;
-      font-size: clamp(2rem, 6vw, 2.8rem);
-      line-height: 1.08;
-      font-weight: 400;
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: 2.4rem;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.1;
+      margin-bottom: 0.4rem;
+      background: linear-gradient(135deg, #fff 30%, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
-    .hero h1 em {
-      font-style: italic;
-      color: #A8C0F0;
+    .tagline {
+      font-size: 0.88rem;
+      color: rgba(255,255,255,0.45);
+      margin-bottom: 2rem;
+      letter-spacing: 0.04em;
     }
 
-    .hero-sub {
-      margin-top: 0.8rem;
-      font-size: 0.92rem;
-      color: #B0AEAD;
-      line-height: 1.5;
-    }
-
-    /* ── Nav list ── */
-    .nav-list {
-      list-style: none;
-      padding: 1.4rem 1.6rem 1.6rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.55rem;
-    }
-
-    .nav-list li a {
+    /* big button */
+    .big-btn {
       display: flex;
       align-items: center;
       justify-content: space-between;
       text-decoration: none;
-      color: var(--ink);
-      background: var(--surface);
-      border-radius: var(--radius);
-      padding: 0.85rem 1.1rem;
-      font-size: 0.95rem;
-      font-weight: 500;
-      transition: background 0.15s, color 0.15s, transform 0.12s;
-      border: 1.5px solid transparent;
+      background: linear-gradient(135deg, #7c3aed, #3b82f6);
+      color: #fff;
+      border-radius: 16px;
+      padding: 1.1rem 1.4rem;
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 8px 30px rgba(124,58,237,0.35);
+      position: relative;
+      overflow: hidden;
     }
 
-    .nav-list li a:hover,
-    .nav-list li a:focus-visible {
-      background: var(--accent-lt);
-      color: var(--accent);
-      border-color: var(--accent);
-      transform: translateX(3px);
-      outline: none;
+    .big-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.12);
+      opacity: 0;
+      transition: opacity 0.2s;
     }
 
-    .nav-list li a .link-label {
-      display: flex;
-      align-items: center;
-      gap: 0.65rem;
-    }
+    .big-btn:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 14px 40px rgba(124,58,237,0.5); }
+    .big-btn:hover::before { opacity: 1; }
+    .big-btn:active { transform: scale(0.98); }
 
-    .nav-list li a .icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 7px;
-      background: #fff;
+    .btn-left { display: flex; align-items: center; gap: 0.75rem; }
+    .btn-icon {
+      font-size: 1.5rem;
+      width: 42px;
+      height: 42px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 10px;
       display: grid;
       place-items: center;
-      font-size: 1rem;
-      flex-shrink: 0;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .btn-arrow { font-size: 1.2rem; opacity: 0.8; }
+
+    .hint {
+      margin-top: 1.6rem;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.25);
     }
 
-    .nav-list li a .arrow {
-      font-size: 1rem;
-      color: var(--muted);
-      transition: color 0.15s;
-    }
-
-    .nav-list li a:hover .arrow,
-    .nav-list li a:focus-visible .arrow {
-      color: var(--accent);
-    }
-
-    /* ── Footer ── */
-    .card-footer {
-      border-top: 1px solid var(--surface);
-      padding: 1rem 1.6rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-
-    .card-footer span {
-      font-size: 0.78rem;
-      color: var(--muted);
-    }
-
-    .social-links {
-      display: flex;
-      gap: 0.6rem;
-    }
-
-    .social-links a {
-      font-size: 0.78rem;
-      font-weight: 500;
-      color: var(--accent);
-      text-decoration: none;
-      padding: 0.25rem 0.55rem;
-      border-radius: 5px;
-      background: var(--accent-lt);
-      transition: opacity 0.15s;
-    }
-
-    .social-links a:hover { opacity: 0.75; }
-
-    @media (prefers-reduced-motion: reduce) {
-      .nav-list li a { transition: none; }
-    }
-
-    @media (max-width: 480px) {
-      .hero { padding: 2rem 1.4rem 1.6rem; }
-      .nav-list { padding: 1rem 1rem 1.2rem; }
-      .card-footer { padding: 0.9rem 1rem; }
+    @media (max-width: 380px) {
+      h1 { font-size: 2rem; }
+      .card { padding: 2rem 1.4rem; }
     }
   </style>
 </head>
 <body>
 
-  <main class="card" role="main">
+  <!-- stars -->
+  <div class="stars" id="stars"></div>
+  <div class="glow glow-1"></div>
+  <div class="glow glow-2"></div>
 
-    <div class="hero">
-      <p class="hero-eyebrow">Portfolio</p>
-      <h1>Jo<br><em>— welcome.</em></h1>
-      <p class="hero-sub">A short line about who you are and what you do.<br>Tweak this to match your voice.</p>
-    </div>
+  <main class="card">
+    <span class="emoji-big">🌙</span>
+    <h1>Hey Jo!</h1>
+    <p class="tagline">your personal corner of the internet</p>
 
-    <!-- ✏️  Replace href="#" with your actual .html filenames, e.g. href="about.html" -->
-    <ul class="nav-list" aria-label="Site pages">
+    <a href="jos-list.html" class="big-btn">
+      <span class="btn-left">
+        <span class="btn-icon">✅</span>
+        Jo's To Do List
+      </span>
+      <span class="btn-arrow">→</span>
+    </a>
 
-      <li>
-        <a href="jos-list.html">
-          <span class="link-label">
-            <span class="icon" aria-hidden="true">✅</span>
-            To Do List
-          </span>
-          <span class="arrow" aria-hidden="true">→</span>
-        </a>
-      </li>
-
-      <li>
-        <a href="projects.html">
-          <span class="link-label">
-            <span class="icon" aria-hidden="true">🗂️</span>
-            Projects
-          </span>
-          <span class="arrow" aria-hidden="true">→</span>
-        </a>
-      </li>
-
-      <li>
-        <a href="resume.html">
-          <span class="link-label">
-            <span class="icon" aria-hidden="true">📄</span>
-            Résumé
-          </span>
-          <span class="arrow" aria-hidden="true">→</span>
-        </a>
-      </li>
-
-      <li>
-        <a href="contact.html">
-          <span class="link-label">
-            <span class="icon" aria-hidden="true">✉️</span>
-            Contact
-          </span>
-          <span class="arrow" aria-hidden="true">→</span>
-        </a>
-      </li>
-
-      <!-- ✏️  Add more pages by duplicating a <li> block above -->
-
-    </ul>
-
-    <footer class="card-footer">
-      <span>© 2026 Jo</span>
-      <nav class="social-links" aria-label="Social links">
-        <!-- ✏️  Replace # with your real URLs -->
-        <a href="https://github.com/yourusername" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://linkedin.com/in/yourprofile" target="_blank" rel="noopener">LinkedIn</a>
-      </nav>
-    </footer>
-
+    <p class="hint">more pages coming soon ✨</p>
   </main>
+
+  <script>
+    // sprinkle stars
+    const container = document.getElementById('stars');
+    for (let i = 0; i < 80; i++) {
+      const s = document.createElement('div');
+      s.className = 'star';
+      const size = Math.random() * 2.5 + 0.5;
+      s.style.cssText = `
+        width:${size}px; height:${size}px;
+        top:${Math.random()*100}%;
+        left:${Math.random()*100}%;
+        --d:${(Math.random()*4+1.5).toFixed(1)}s;
+        animation-delay:${(Math.random()*5).toFixed(1)}s;
+      `;
+      container.appendChild(s);
+    }
+  </script>
 
 </body>
 </html>
