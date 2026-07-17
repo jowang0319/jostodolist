@@ -435,7 +435,7 @@ function SourceBadge({ source }) {
 }
 
 // ─── RefCard ──────────────────────────────────────────────────────────────────
-function RefCard({ item, onEdit, onDelete, palette }) {
+function RefCard({ item, onEdit, onDelete, onArchive, palette }) {
   const p = palette || {bg:T.bgCard,border:T.border,text:T.text};
   return (
     <div style={{background:p.bg,border:`1px solid ${p.border}`,borderRadius:12,padding:"14px 16px",marginBottom:9,boxShadow:T.shadow}}>
@@ -444,6 +444,7 @@ function RefCard({ item, onEdit, onDelete, palette }) {
         <span style={{flex:1,fontSize:15,fontWeight:600,color:p.text}}>{item.title}</span>
         <span style={{fontSize:12,color:T.textMuted}}>{fmtDate(item.addedAt)}</span>
         <button onClick={()=>onEdit(item)} style={iB(T.bgCard,T.accent)}><Icon n="edit" size={14}/></button>
+        {onArchive && <button onClick={()=>onArchive(item)} title="Archive" style={iB(T.bgCard,T.green)}><Icon n="check" size={14}/></button>}
         <button onClick={()=>onDelete(item.id)} style={iB(T.bgCard,T.red)}><Icon n="trash" size={14}/></button>
       </div>
       {item.note && <div style={{fontSize:14,color:T.textSub,paddingLeft:22,marginTop:6,whiteSpace:"pre-wrap",lineHeight:1.6}}>{item.note}</div>}
@@ -460,7 +461,7 @@ function RefCard({ item, onEdit, onDelete, palette }) {
 // ─── RefsTab — coloured groups, sort within group, search ─────────────────────
 const DEFAULT_TAGS = ["Team Planning","Manager Lessons & Hints","Team Member Development","Other Learning Materials"];
 
-function RefsTab({ items, allTags, onUpdateTags, onEdit, onDelete, onAdd }) {
+function RefsTab({ items, allTags, onUpdateTags, onEdit, onDelete, onArchive, onAdd }) {
   const [search, setSearch] = useState("");
   const [manageTags, setManageTags] = useState(false);
   const [groupSort, setGroupSort] = useState({}); // {tagName: "newest"|"oldest"|"az"|"za"}
@@ -529,7 +530,7 @@ function RefsTab({ items, allTags, onUpdateTags, onEdit, onDelete, onAdd }) {
             </div>
             {/* Cards */}
             <div style={{background:pal.bg,padding:"12px 12px 4px"}}>
-              {group.map(item=><RefCard key={item.id} item={item} onEdit={onEdit} onDelete={onDelete} palette={pal}/>)}
+              {group.map(item=><RefCard key={item.id} item={item} onEdit={onEdit} onDelete={onDelete} onArchive={onArchive} palette={pal}/>)}
             </div>
           </div>
         );
@@ -539,31 +540,39 @@ function RefsTab({ items, allTags, onUpdateTags, onEdit, onDelete, onAdd }) {
   );
 }
 
-// ─── ArchiveTab — by date, source badge, tag filter, search ───────────────────
+// ─── ArchiveTab — date sorted, source badge only ──────────────────────────────
 const ARCHIVE_SOURCE_COLORS = [
   {bg:"#EEF0FE",border:"#B8C0F8",text:"#3D4EC7"},
   {bg:"#FEF3E8",border:"#F8C89A",text:"#9A4E10"},
   {bg:"#E8F8EF",border:"#9FD9B8",text:"#1A6640"},
   {bg:"#FDE8F8",border:"#F0A8E8",text:"#8A1870"},
   {bg:"#FEF8E0",border:"#F0D880",text:"#806010"},
+  {bg:"#E8F4FE",border:"#98C8F8",text:"#1048A0"},
 ];
-function ArchiveTab({ items, allTags, onUpdateTags, onTagItem, onDelete }) {
-  const [activeTag, setActiveTag] = useState(null);
-  const [search, setSearch] = useState("");
-  const [manageTags, setManageTags] = useState(false);
-  const [taggingId, setTaggingId] = useState(null);
+// stable source → colour mapping based on insertion order
+const SOURCE_PALETTE_CACHE = {};
+let SOURCE_PALETTE_IDX = 0;
+function getSourceColor(source) {
+  if (!source) return null;
+  if (!SOURCE_PALETTE_CACHE[source]) {
+    SOURCE_PALETTE_CACHE[source] = ARCHIVE_SOURCE_COLORS[SOURCE_PALETTE_IDX % ARCHIVE_SOURCE_COLORS.length];
+    SOURCE_PALETTE_IDX++;
+  }
+  return SOURCE_PALETTE_CACHE[source];
+}
 
-  // Build a stable colour map for sources
-  const allSources = [...new Set(items.map(i=>i.source||"").filter(Boolean))];
-  const sourceColorMap = {};
-  allSources.forEach((s,i)=>{ sourceColorMap[s] = ARCHIVE_SOURCE_COLORS[i%ARCHIVE_SOURCE_COLORS.length]; });
+function ArchiveTab({ items, onDelete }) {
+  const [search, setSearch] = useState("");
+  const [activeSource, setActiveSource] = useState(null);
 
   const q = search.toLowerCase();
+  const allSources = [...new Set(items.map(i=>i.source).filter(Boolean))];
+
   const sorted = [...items].sort((a,b)=>new Date(b.archivedAt)-new Date(a.archivedAt));
   const filtered = sorted.filter(r => {
-    const matchTag = activeTag===null || (r.tags||[]).includes(activeTag);
-    const matchSearch = !q || (r.text||"").toLowerCase().includes(q);
-    return matchTag && matchSearch;
+    const matchSource = !activeSource || r.source===activeSource;
+    const matchSearch = !q || (r.text||r.title||"").toLowerCase().includes(q);
+    return matchSource && matchSearch;
   });
 
   const now = new Date(); now.setHours(0,0,0,0);
@@ -580,7 +589,17 @@ function ArchiveTab({ items, allTags, onUpdateTags, onTagItem, onDelete }) {
   return (
     <div>
       <SearchBar value={search} onChange={setSearch}/>
-      <TagFilterBar allTags={allTags} active={activeTag} onChange={setActiveTag} onManage={()=>setManageTags(true)}/>
+      {/* Source filter pills */}
+      {allSources.length>0 && (
+        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:16}}>
+          <button onClick={()=>setActiveSource(null)} style={{borderRadius:20,padding:"4px 14px",fontSize:13,cursor:"pointer",border:`1px solid ${!activeSource?T.accent:T.border}`,background:!activeSource?T.accentBg:"none",color:!activeSource?T.accent:T.textSub,fontWeight:!activeSource?600:400}}>All</button>
+          {allSources.map(s=>{
+            const sc=getSourceColor(s);
+            const active=activeSource===s;
+            return <button key={s} onClick={()=>setActiveSource(active?null:s)} style={{borderRadius:20,padding:"4px 14px",fontSize:13,cursor:"pointer",border:`1px solid ${active?sc.text:T.border}`,background:active?sc.bg:"none",color:active?sc.text:T.textSub,fontWeight:active?600:400}}>{s}</button>;
+          })}
+        </div>
+      )}
       {items.length===0 && <Empty text="Completed tasks will appear here."/>}
       {items.length>0 && filtered.length===0 && <Empty text="No matching items."/>}
       {bucketOrder.map(bucket=>{
@@ -589,20 +608,21 @@ function ArchiveTab({ items, allTags, onUpdateTags, onTagItem, onDelete }) {
           <div key={bucket} style={{marginBottom:24}}>
             <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.1em",color:T.textMuted,textTransform:"uppercase",marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${T.border}`}}>{bucket}</div>
             {grouped[bucket].map(item=>{
-              const sc = item.source ? (sourceColorMap[item.source]||ARCHIVE_SOURCE_COLORS[0]) : null;
+              const sc = getSourceColor(item.source);
+              const label = item.text || item.title || item.topic || "";
               return (
                 <div key={item.id} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderLeft:`4px solid ${sc?sc.text:T.border}`,borderRadius:12,padding:"12px 14px",marginBottom:9,boxShadow:T.shadow,opacity:0.9}}>
                   <div style={{display:"flex",alignItems:"flex-start",gap:8,flexWrap:"wrap"}}>
                     <div style={{flex:1,minWidth:0}}>
-                      <RichText text={item.text} style={{fontSize:15,textDecoration:"line-through",color:T.textMuted,lineHeight:1.5}}/>
-                      <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:6,alignItems:"center"}}>
-                        {item.source && <span style={{fontSize:11,fontWeight:600,borderRadius:20,padding:"2px 9px",background:sc.bg,color:sc.text,border:`1px solid ${sc.border}`}}>{item.source}</span>}
-                        {(item.tags||[]).map(t=><span key={t} style={{fontSize:11,borderRadius:20,padding:"2px 9px",background:T.accentBg,color:T.accent,fontWeight:500}}>{t}</span>)}
-                      </div>
+                      <div style={{fontSize:15,textDecoration:"line-through",color:T.textMuted,lineHeight:1.5}}>{label}</div>
+                      {item.source && (
+                        <div style={{marginTop:5}}>
+                          <span style={{fontSize:11,fontWeight:600,borderRadius:20,padding:"2px 9px",background:sc.bg,color:sc.text,border:`1px solid ${sc.border}`}}>{item.source}</span>
+                        </div>
+                      )}
                     </div>
                     <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
                       <span style={{fontSize:12,color:T.textMuted}}>{fmtDate(item.archivedAt)}</span>
-                      <button onClick={()=>setTaggingId(item.id)} title="Tag" style={iB(T.accentBg,T.accent)}><span style={{fontSize:13}}>🏷</span></button>
                       <button onClick={()=>onDelete(item.id)} title="Delete" style={iB(T.redBg,T.red)}><Icon n="trash" size={14}/></button>
                     </div>
                   </div>
@@ -612,17 +632,6 @@ function ArchiveTab({ items, allTags, onUpdateTags, onTagItem, onDelete }) {
           </div>
         );
       })}
-      {taggingId && (()=>{
-        const item = items.find(i=>i.id===taggingId);
-        return (
-          <Modal title="Tag this item" onClose={()=>setTaggingId(null)}>
-            <div style={{marginBottom:10,fontSize:14,color:T.textSub,fontStyle:"italic"}}>"{item?.text}"</div>
-            <TagPicker allTags={allTags} selected={item?.tags||[]} onChange={tags=>onTagItem(taggingId,tags)}/>
-            <button onClick={()=>setTaggingId(null)} style={{background:T.accent,color:"#fff",border:"none",borderRadius:8,padding:"11px",cursor:"pointer",fontWeight:600,fontSize:15,width:"100%",marginTop:12}}>Done</button>
-          </Modal>
-        );
-      })()}
-      {manageTags && <ManageTagsModal allTags={allTags} onClose={()=>setManageTags(false)} onSave={t=>{onUpdateTags(t);setManageTags(false);}}/>}
     </div>
   );
 }
@@ -774,8 +783,10 @@ function App() {
   const reorderRecurring = (next) => update(d=>({...d,recurring:next}));
   const saveTalking = (item) => update(d=>{ const ex=d.talking.find(t=>t.id===item.id); return {...d,talking:ex?d.talking.map(t=>t.id===item.id?item:t):[...d.talking,item]}; });
   const delTalking = (id) => update(d=>({...d,talking:d.talking.filter(t=>t.id!==id)}));
+  const archiveTalking = (item) => update(d=>({...d, talking:d.talking.filter(t=>t.id!==item.id), archive:[...d.archive,{id:uid(),text:item.topic,archivedAt:new Date().toISOString(),source:"Talking Points"}]}));
   const saveRef = (item) => update(d=>{ const ex=d.refs.find(r=>r.id===item.id); return {...d,refs:ex?d.refs.map(r=>r.id===item.id?item:r):[...d.refs,item]}; });
   const delRef = (id) => update(d=>({...d,refs:d.refs.filter(r=>r.id!==id)}));
+  const archiveRef = (item) => update(d=>({...d, refs:d.refs.filter(r=>r.id!==item.id), archive:[...d.archive,{id:uid(),text:item.title,archivedAt:new Date().toISOString(),source:"Reference"}]}));
 
   const totalOverdue = data.todos.filter(t=>t.deadline&&isOverdue(t.deadline)).length + data.recurring.filter(r=>isOverdue(nextOccurrence(r))).length;
 
@@ -927,6 +938,7 @@ function App() {
                     <div style={{fontSize:19,fontWeight:700,color:T.text,lineHeight:1.3}}><RichText text={item.topic}/></div>
                   </div>
                   <button onClick={()=>setEditTalking(item)} style={iB(T.accentBg,T.accent)}><Icon n="edit" size={14}/></button>
+                  <button onClick={()=>archiveTalking(item)} title="Archive" style={iB(T.greenBg,T.green)}><Icon n="check" size={14}/></button>
                   <button onClick={()=>delTalking(item.id)} style={iB(T.redBg,T.red)}><Icon n="trash" size={14}/></button>
                 </div>
                 {item.points.length>0 && (
@@ -948,9 +960,6 @@ function App() {
         {tab==="archive" && (
           <ArchiveTab
             items={data.archive}
-            allTags={data.tags||[]}
-            onUpdateTags={tags=>update(d=>({...d,tags}))}
-            onTagItem={(id,tags)=>update(d=>({...d,archive:d.archive.map(a=>a.id===id?{...a,tags}:a)}))}
             onDelete={id=>update(d=>({...d,archive:d.archive.filter(a=>a.id!==id)}))}
           />
         )}
@@ -963,6 +972,7 @@ function App() {
             onUpdateTags={tags=>update(d=>({...d,tags}))}
             onEdit={item=>setEditRef(item)}
             onDelete={id=>delRef(id)}
+            onArchive={archiveRef}
             onAdd={()=>setModal({type:"ref"})}
           />
         )}
