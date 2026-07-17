@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team Inputs – Control Framework</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=DM+Serif+Display&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #F7F6F3;
+    color: #1a1a1a;
+    padding: 40px 24px 64px;
+    min-height: 100vh;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2rem;
+    color: #111;
+    letter-spacing: -0.02em;
+  }
+
+  header p {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: #888;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* Each "section" is a pair: problems col + actions col, inside a section-wrapper */
+  .section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    max-width: 1300px;
+    margin: 0 auto 32px;
+  }
+
+  .section-label {
+    max-width: 1300px;
+    margin: 0 auto 10px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #aaa;
+    padding-left: 2px;
+  }
+
+  .column {
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid #E8E6E1;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  }
+
+  .col-header {
+    padding: 16px 20px 14px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .col-header .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Problem column headers */
+  .col-control .col-header   { background: #EEF0FF; color: #4451C7; border-bottom: 1px solid #D8DCFF; }
+  .col-control .col-header .dot { background: #4451C7; }
+  .col-influence .col-header { background: #E8F5F0; color: #2A7A5A; border-bottom: 1px solid #C0E4D6; }
+  .col-influence .col-header .dot { background: #2A7A5A; }
+  .col-outside .col-header   { background: #FFF1EE; color: #C0502A; border-bottom: 1px solid #FCCFBF; }
+  .col-outside .col-header .dot { background: #C0502A; }
+
+  /* Action column headers */
+  .col-actions .col-header { background: #F5F5F5; color: #555; border-bottom: 1px solid #E0E0E0; }
+  .col-actions .col-header .dot { background: #999; }
+
+  .items {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Problem items */
+  .item {
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: #2a2a2a;
+    background: #FAFAF8;
+    border: 1px solid #EBEBEB;
+  }
+
+  .item .tag {
+    display: inline-block;
+    font-size: 0.67rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-bottom: 7px;
+  }
+
+  .col-control .item .tag  { background: #DDE0FF; color: #3A44B0; }
+  .col-influence .item .tag { background: #C8EAD8; color: #1E6644; }
+  .col-outside .item .tag  { background: #FFD9CE; color: #9E3A1F; }
+
+  /* Action items */
+  .action-group {
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: #FAFAF8;
+    border: 1px solid #EBEBEB;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .action-group .atag {
+    display: inline-block;
+    font-size: 0.67rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    background: #F0F0F0;
+    color: #555;
+  }
+
+  .action-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.81rem;
+    line-height: 1.55;
+    color: #2a2a2a;
+  }
+
+  .action-item .badge {
+    flex-shrink: 0;
+    font-size: 0.63rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+
+  .badge.jo   { background: #E8EDFF; color: #3A44B0; }
+  .badge.tbd  { background: #FFF4D6; color: #8A6200; }
+  .badge.team { background: #E8F5F0; color: #1E6644; }
+
+  @media (max-width: 860px) {
+    .section { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Team Inputs &amp; Actions</h1>
+  <p>Control Framework · DA Team Retro</p>
+</header>
+
+<!-- ═══════════════ WE CONTROL ═══════════════ -->
+<div class="section-label">We Control</div>
+<div class="section">
+
+  <div class="column col-control">
+    <div class="col-header"><span class="dot"></span>Problems</div>
+    <div class="items">
+
+      <div class="item">
+        <span class="tag">Team Knowledge Sharing</span>
+        Knowledge is siloed and AI adoption is uneven. No lightweight, low-pressure way for the team to share what's working.
+      </div>
+
+      <div class="item">
+        <span class="tag">Sprint Process</span>
+        Sprint structure needs an overhaul. Story point assessments may not be meaningful, and retros aren't driving change. Need to align on how we plan work, manage capacity, and track commits more intentionally.
+      </div>
+
+      <div class="item">
+        <span class="tag">Team Morale & Identity</span>
+        Two connected issues: stress from workload, job security, and lack of recognition; and an unclear team identity — we're sometimes seen as Ops or IT.
+      </div>
+
+    </div>
+  </div>
+
+  <div class="column col-actions">
+    <div class="col-header"><span class="dot"></span>Actions</div>
+    <div class="items">
+
+      <div class="action-group">
+        <span class="atag">Team Knowledge Sharing</span>
+        <div class="action-item"><span class="badge jo">Jo</span> Send a monthly async Slack prompt — "what's one thing that saved you time this month?"</div>
+        <div class="action-item"><span class="badge jo">Jo</span> Identify 1–2 people ahead on AI to run informal, drop-in office hours</div>
+        <div class="action-item"><span class="badge team">Team</span> If Slack threads get traction, decide as a team whether to bring it into ZDA biweekly</div>
+      </div>
+
+      <div class="action-group">
+        <span class="atag">Sprint Process</span>
+        <div class="action-item"><span class="badge jo">Jo</span> Facilitate a one-off dedicated retro audit on the sprint process itself</div>
+        <div class="action-item"><span class="badge team">Team</span> Align as a team on what story points mean → document it</div>
+        <div class="action-item"><span class="badge team">Team</span> Sprint planning improvements — needs more team discussion on specific pain points</div>
+      </div>
+
+      <div class="action-group">
+        <span class="atag">Team Morale & Identity</span>
+        <div class="action-item"><span class="badge team">Team</span> Re-read the team one-pager together in a team meeting</div>
+        <div class="action-item"><span class="badge jo">Jo</span> Do 1:1s or team check-in to understand who's feeling the stress — include workload expectations conversation</div>
+        <div class="action-item"><span class="badge jo">Jo</span> Consolidate recognition into existing shoutout moments (Catalyst / ZDA biweekly)</div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ WE INFLUENCE ═══════════════ -->
+<div class="section-label">We Influence</div>
+<div class="section">
+
+  <div class="column col-influence">
+    <div class="col-header"><span class="dot"></span>Problems</div>
+    <div class="items">
+
+      <div class="item">
+        <span class="tag">Career Growth & Rubric</span>
+        Career rubric isn't aligned with what the DA team actually does — some criteria feel designed for product/Braze teams. Need clarity on how rubric, commits, company goals, and personal goals connect.
+      </div>
+
+      <div class="item">
+        <span class="tag">Standards & Craft</span>
+        Raise the bar on data models, architecture, and analytical tooling. Need more consistency across the org (especially ZDA vs. Risk) and clearer definitions of what "good" looks like.
+      </div>
+
+      <div class="item">
+        <span class="tag">AI Usage</span>
+        No team-wide norms on how much AI to use or what it should be used for — everyone figuring it out solo.
+      </div>
+
+      <div class="item">
+        <span class="tag">Prioritization & Strategy</span>
+        Push for a more data-driven approach to what business and product teams focus on. ZDA should have a seat at the table for strategic decisions — we were not involved in the org restructure and should have been.
+      </div>
+
+    </div>
+  </div>
+
+  <div class="column col-actions">
+    <div class="col-header"><span class="dot"></span>Actions</div>
+    <div class="items">
+
+      <div class="action-group">
+        <span class="atag">Career Growth & Rubric</span>
+        <div class="action-item"><span class="badge jo">Jo</span> Sit with the rubric more deeply, then open an async thread for the team to add thoughts on where it doesn't fit</div>
+        <div class="action-item"><span class="badge jo">Jo</span> Clarify how rubric, commits, company goals, and personal goals connect — communicate this to the team</div>
+        <div class="action-item"><span class="badge tbd">TBD</span> Longer-term: bring a DA-specific rubric proposal to leadership</div>
+      </div>
+
+      <div class="action-group">
+        <span class="atag">Standards & Craft</span>
+        <div class="action-item"><span class="badge tbd">TBD</span> Risk tooling + naming conventions alignment (FY27 roadmap)</div>
+        <div class="action-item"><span class="badge jo">Jo</span> Organize internal lectures / knowledge sessions on data models & architecture</div>
+      </div>
+
+      <div class="action-group">
+        <span class="atag">AI Usage</span>
+        <div class="action-item"><span class="badge team">Team</span> Agree as a team on a stance — what AI is encouraged for, what needs judgment</div>
+        <div class="action-item"><span class="badge team">Team</span> Build on each other's prompts/workflows — could tie into AI office hours</div>
+      </div>
+
+      <div class="action-group">
+        <span class="atag">Prioritization & Strategy</span>
+        <div class="action-item"><span class="badge tbd">TBD</span> Request a recurring leadership touchpoint to align on business priorities</div>
+        <div class="action-item"><span class="badge team">Team</span> Review current intake flow — what's working and what's not?</div>
+        <div class="action-item"><span class="badge jo">Jo</span> Document cases where DA wasn't in the room → build the case for a seat at the table</div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ OUTSIDE OF OUR CONTROL ═══════════════ -->
+<div class="section-label">Outside of Our Control</div>
+<div class="section">
+
+  <div class="column col-outside">
+    <div class="col-header"><span class="dot"></span>Problems</div>
+    <div class="items">
+
+      <div class="item">
+        <span class="tag">Org Instability</span>
+        Repeated org changes have left the Data team feeling directionless and undervalued — from CDO to Credit/Risk to "PRODE." ZDA never felt truly embedded. Too many priority and focus shifts compound this.
+      </div>
+
+      <div class="item">
+        <span class="tag">People & Talent Stability</span>
+        Turnover and calibrations are ongoing concerns outside the team's direct control.
+      </div>
+
+      <div class="item">
+        <span class="tag">Company Decisions</span>
+        IPO timing and stock options. Broader AI disruption and its impact on the role of data teams — uncertain and a bit worrying.
+      </div>
+
+    </div>
+  </div>
+
+  <div class="column col-actions">
+    <div class="col-header"><span class="dot"></span>Actions</div>
+    <div class="items">
+
+      <div class="action-group">
+        <span class="atag">Org Instability</span>
+        <div class="action-item"><span class="badge jo">Jo</span> Proactively communicate DA team's value after org changes — don't wait to be rediscovered</div>
+        <div class="action-item"><span class="badge jo">Jo</span> Strengthen internal team communication to stay cohesive through external shifts</div>
+      </div>
+
+      <div class="action-group">
+        <span class="atag">People & Talent Stability</span>
+        <div class="action-item"><span class="badge tbd">TBD</span> Build onboarding + knowledge transfer practices as a team</div>
+        <div class="action-item"><span class="badge team">Team</span> Surface calibration concerns early — how do we want to handle this together?</div>
+      </div>
+
+      <div class="action-group">
+        <span class="atag">Company Decisions</span>
+        <div class="action-item"><span class="badge team">Team</span> Acknowledge the anxiety openly — find the right moment and format to address it together</div>
+        <div class="action-item"><span class="badge jo">Jo</span> Keep focus on making the team's impact visible and indispensable</div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
