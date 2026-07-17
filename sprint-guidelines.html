@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DA Team · Sprint Guidelines</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;1,400&family=Syne:wght@700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #F8F7F4;
+    --surface: #FFFFFF;
+    --border: #E5E2DB;
+    --text: #1C1C1C;
+    --muted: #888580;
+    --accent: #2D5BE3;
+    --accent-light: #EEF2FF;
+    --warn: #C47A1A;
+    --warn-light: #FFF8EC;
+    --green: #1E7A4A;
+    --green-light: #EDFAF3;
+    --red: #C0352A;
+    --red-light: #FFF1EE;
+    --nav-w: 220px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0;
+    width: var(--nav-w);
+    height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 40px 0 40px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .nav-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.78rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 24px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+
+  nav a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 24px;
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.15s, background 0.15s;
+    line-height: 1.4;
+  }
+
+  nav a:hover { color: var(--text); background: var(--bg); }
+  nav a.active { color: var(--accent); font-weight: 600; }
+
+  nav a .num {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-light);
+    border-radius: 4px;
+    padding: 1px 5px;
+    flex-shrink: 0;
+  }
+
+  /* ── MAIN ── */
+  main {
+    margin-left: var(--nav-w);
+    flex: 1;
+    padding: 60px 56px 100px;
+    max-width: 860px;
+  }
+
+  .doc-header {
+    margin-bottom: 56px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .doc-eyebrow {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+
+  .doc-header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 2.2rem;
+    line-height: 1.2;
+    color: var(--text);
+    margin-bottom: 14px;
+  }
+
+  .doc-header p {
+    font-size: 0.9rem;
+    color: var(--muted);
+    line-height: 1.7;
+    max-width: 580px;
+  }
+
+  /* ── SECTIONS ── */
+  .section {
+    margin-bottom: 64px;
+    scroll-margin-top: 40px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .section-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    background: var(--accent-light);
+    padding: 3px 8px;
+    border-radius: 5px;
+    flex-shrink: 0;
+  }
+
+  .section h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.25rem;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+
+  .section-divider {
+    height: 1px;
+    background: var(--border);
+    margin-bottom: 24px;
+  }
+
+  /* ── PROSE ── */
+  p {
+    font-size: 0.875rem;
+    line-height: 1.75;
+    color: #3a3a3a;
+    margin-bottom: 14px;
+  }
+
+  p:last-child { margin-bottom: 0; }
+
+  /* ── TABLE ── */
+  .table-wrap {
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin: 20px 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.83rem;
+  }
+
+  thead tr { background: #F2F0EC; }
+
+  th {
+    text-align: left;
+    padding: 10px 16px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    line-height: 1.5;
+    color: #2a2a2a;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #FAFAF8; }
+
+  td .pts {
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  td .time {
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  /* ── CALLOUT ── */
+  .callout {
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 0.83rem;
+    line-height: 1.65;
+    margin: 16px 0;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .callout .icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+
+  .callout.info    { background: var(--accent-light); border: 1px solid #C5D1F8; color: #1a3a8a; }
+  .callout.warn    { background: var(--warn-light);   border: 1px solid #F0D090; color: #7A4A00; }
+  .callout.success { background: var(--green-light);  border: 1px solid #A0DDB8; color: #0F4A2A; }
+  .callout.danger  { background: var(--red-light);    border: 1px solid #F4B8B0; color: #7A1A10; }
+
+  /* ── RULE CARDS ── */
+  .rules {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 16px 0;
+  }
+
+  .rule {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 0.83rem;
+    line-height: 1.6;
+    color: #2a2a2a;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .rule .rule-icon { flex-shrink: 0; font-size: 0.9rem; margin-top: 2px; }
+
+  .rule strong { color: var(--text); }
+
+  /* ── ESCALATION CARDS ── */
+  .escalations {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 16px 0;
+  }
+
+  .esc-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 0.83rem;
+    line-height: 1.6;
+    color: #2a2a2a;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px 14px;
+    align-items: start;
+  }
+
+  .esc-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--warn);
+    background: var(--warn-light);
+    border: 1px solid #F0D090;
+    border-radius: 5px;
+    padding: 2px 7px;
+    white-space: nowrap;
+  }
+
+  .esc-title { font-weight: 600; color: var(--text); margin-bottom: 3px; }
+
+  /* ── RETRO RHYTHM ── */
+  .rhythm {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 16px 0;
+  }
+
+  .rhythm-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+
+  .rhythm-card .r-label {
+    font-size: 0.67rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .rhythm-card .r-title {
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+
+  .rhythm-card p {
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  /* ── TICKET FIELDS ── */
+  .fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 16px 0;
+  }
+
+  .field {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.82rem;
+  }
+
+  .field .f-label {
+    font-size: 0.67rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .field .f-val {
+    color: var(--text);
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  .field.required .f-label { color: var(--accent); }
+
+  a.ext {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+    border-bottom: 1px solid var(--accent-light);
+  }
+  a.ext:hover { border-bottom-color: var(--accent); }
+
+  @media (max-width: 900px) {
+    nav { display: none; }
+    main { margin-left: 0; padding: 32px 24px 80px; }
+    .rhythm { grid-template-columns: 1fr; }
+    .fields { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+  <div class="nav-title">Sprint Guidelines</div>
+  <a href="#planning"><span class="num">01</span> Sprint Planning</a>
+  <a href="#fibonacci"><span class="num">02</span> Story Points</a>
+  <a href="#expectation"><span class="num">03</span> Sprint Expectations</a>
+  <a href="#retro"><span class="num">04</span> Sprint Retro</a>
+  <a href="#tickets"><span class="num">05</span> Tickets & CBT</a>
+  <a href="#escalation"><span class="num">06</span> Escalation</a>
+</nav>
+
+<!-- ── MAIN ── -->
+<main>
+
+  <div class="doc-header">
+    <div class="doc-eyebrow">DA Team · Ways of Working</div>
+    <h1>Sprint Guidelines</h1>
+    <p>A shared reference for how we plan, estimate, track, and reflect on our work. The goal is consistency and clarity — not rigidity. Use this as a guide, not a rulebook.</p>
+    <a class="ext" href="https://quadpay.atlassian.net/jira/software/c/projects/DA/boards/363" target="_blank" style="display:inline-flex;align-items:center;gap:6px;margin-top:16px;font-size:0.82rem;">🗂️ DA Catalyst Board ↗</a>
+  </div>
+
+  <!-- 01 PLANNING -->
+  <div class="section" id="planning">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <h2>Sprint Planning</h2>
+    </div>
+    <div class="section-divider"></div>
+
+    <p>Sprints kick off on <strong>Thursdays</strong>. Your sprint board should be finalized by <strong>Wednesday EOD</strong> — this is a hard deadline, not a suggestion. It gives Jo time to review and align with you before Thursday if needed.</p>
+
+    <div class="callout success">
+      <span class="icon">💡</span>
+      <span>Ideally aim to have your board ready <strong>Wednesday morning</strong> so there's room for a quick sync if something needs adjusting.</span>
+    </div>
+
+    <p>When planning your sprint, make sure each ticket reflects real, intentional work. Ask yourself: does this sprint move my active projects forward — or am I just filling it with tickets?</p>
+  </div>
+
+  <!-- 02 FIBONACCI -->
+  <div class="section" id="fibonacci">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <h2>Story Points & Time-Based Estimation</h2>
+    </div>
+    <div class="section-divider"></div>
+
+    <p>We use a Fibonacci-based story point system where each value maps to an explicit time range. This gives the team a shared language when estimating — so that a "3" means the same thing to everyone during planning.</p>
+
+    <div class="callout warn">
+      <span class="icon">⚠️</span>
+      <span>Estimates are guidelines, not commitments. Time is not a performance metric — story points are for planning, not measuring people.</span>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Points</th>
+            <th>Time Estimate</th>
+            <th>Guidance</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="pts">0.5</span></td><td><span class="time">~Half day</span></td><td>Very small, clearly scoped task. Be intentional — don't skip this in favour of defaulting to 1.</td></tr>
+          <tr><td><span class="pts">1</span></td><td><span class="time">~1 day</span></td><td>Can be picked up and completed within a single work day.</td></tr>
+          <tr><td><span class="pts">2</span></td><td><span class="time">1–2 days</span></td><td>Fits comfortably into 1–2 days with known scope and limited blockers.</td></tr>
+          <tr><td><span class="pts">3</span></td><td><span class="time">2–3 days</span></td><td>Slightly more involved, may require coordination or validation steps.</td></tr>
+          <tr><td><span class="pts">5</span></td><td><span class="time">~1 week</span></td><td>Larger chunk spanning multiple stages. Consider splitting for pairing.</td></tr>
+          <tr><td><span class="pts">8</span></td><td><span class="time">Full sprint</span></td><td>Fills the majority of a sprint. Consider splitting across team members.</td></tr>
+          <tr><td><span class="pts">13</span></td><td><span class="time">Break it down</span></td><td>Too large to estimate reliably. Must be decomposed before entering a sprint.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Full documentation: <a class="ext" href="https://quadpay.atlassian.net/wiki/spaces/QD/pages/4493443132/Story+Points-+Ways+of+Working+Time-Based+Estimation+Fibonacci-Based" target="_blank">Story Points — Ways of Working ↗</a></p>
+  </div>
+
+  <!-- 03 EXPECTATIONS -->
+  <div class="section" id="expectation">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <h2>Sprint Expectations</h2>
+    </div>
+    <div class="section-divider"></div>
+
+    <p>Each analyst should enter a sprint with <strong>8–10 story points</strong> of planned tickets. This is a planning target, not a closing guarantee — real work is unpredictable.</p>
+
+    <div class="callout info">
+      <span class="icon">📋</span>
+      <span>If your board exceeds <strong>13 points</strong>, work with Jo to deprioritize before the sprint kicks off.</span>
+    </div>
+
+    <div class="rules">
+      <div class="rule">
+        <span class="rule-icon">🎯</span>
+        <div><strong>Prioritize by urgency and impact.</strong> Don't close a ticket just because it's easy. Ad-hoc requests always sit behind planned initiatives unless there is true urgency.</div>
+      </div>
+      <div class="rule">
+        <span class="rule-icon">🏖️</span>
+        <div><strong>Account for PTO before the sprint starts.</strong> Plan fewer points for yourself upfront — PTO is not a retroactive explanation for incomplete work.</div>
+      </div>
+      <div class="rule">
+        <span class="rule-icon">🔄</span>
+        <div><strong>Carryover.</strong> Unclosed tickets roll over automatically when a new sprint starts. If a ticket has been carried over <strong>2 sprints</strong>, reassess it with Jo — re-estimate, break it down, or deprioritize depending on the situation.</div>
+      </div>
+      <div class="rule">
+        <span class="rule-icon">✅</span>
+        <div><strong>The goal is to close all planned work by sprint end.</strong> In an ideal world. We know it's not always possible — but it's what we're aiming for.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 04 RETRO -->
+  <div class="section" id="retro">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <h2>Sprint Retro</h2>
+    </div>
+    <div class="section-divider"></div>
+
+    <p>We want retros to actually drive change — not be a checkbox. So we're running them at three levels of depth depending on what's needed.</p>
+
+    <div class="rhythm">
+      <div class="rhythm-card">
+        <div class="r-label">Every Sprint</div>
+        <div class="r-title">Async Burndown</div>
+        <p>Jo shares a burndown chart + quick insights in the Catalyst channel. Use the thread to drop thoughts async — no meeting required.</p>
+      </div>
+      <div class="rhythm-card">
+        <div class="r-label">When needed</div>
+        <div class="r-title">Standup Retro</div>
+        <p>First Friday Catalyst standup. Used when there's something worth discussing as a group. Not every sprint — only when there's signal.</p>
+      </div>
+      <div class="rhythm-card">
+        <div class="r-label">Quarterly</div>
+        <div class="r-title">Deep-Dive Session</div>
+        <p>A bigger retro / Figma exercise to surface patterns and make meaningful process improvements together as a team.</p>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <span class="icon">📌</span>
+      <span>If the burndown or async thread surfaces something worth acting on, we'll capture it with an owner. The quarterly session is where we more deliberately look for improvements and decide what to change.</span>
+    </div>
+  </div>
+
+  <!-- 05 TICKETS -->
+  <div class="section" id="tickets">
+    <div class="section-header">
+      <span class="section-num">05</span>
+      <h2>Ticket Creation & CBT</h2>
+    </div>
+    <div class="section-divider"></div>
+
+    <p>A good ticket gives anyone on the team enough context to understand what's being done and why. Every ticket entering a sprint should have the following fields filled in:</p>
+
+    <div class="fields">
+      <div class="field required">
+        <div class="f-label">✦ Description</div>
+        <div class="f-val">What needs to be done and why. Enough context for someone else to understand the work.</div>
+      </div>
+      <div class="field required">
+        <div class="f-label">✦ Story Points</div>
+        <div class="f-val">Estimated using the Fibonacci scale. Must be set before the ticket enters a sprint.</div>
+      </div>
+      <div class="field required">
+        <div class="f-label">✦ Team Tag</div>
+        <div class="f-val">Tag the correct team so work is visible and attributed properly.</div>
+      </div>
+      <div class="field required">
+        <div class="f-label">✦ Work Type Tag</div>
+        <div class="f-val">Classify the type of work (e.g. analysis, data model, reporting, ad-hoc).</div>
+      </div>
+    </div>
+
+    <p>As you progress on a ticket, <strong>add comments</strong> to log updates — especially when blocked, when scope changes, or when you hand off work. Update your query in the Snowflake shared space and your output in Google Drive when complete.</p>
+
+    <div class="callout info">
+      <span class="icon">🔧</span>
+      <span><strong>CBT:</strong> Project and analytics epics are created and tagged automatically going forward — reducing manual setup. You still need to manually create your individual task tickets within those epics and add your own work details and estimates.</span>
+    </div>
+  </div>
+
+  <!-- 06 ESCALATION -->
+  <div class="section" id="escalation">
+    <div class="section-header">
+      <span class="section-num">06</span>
+      <h2>Escalation</h2>
+    </div>
+    <div class="section-divider"></div>
+
+    <p>The goal is always to close your planned work by end of sprint. When that's not possible, here's how to handle it — the key principle is <strong>communicate early, not at the end</strong>.</p>
+
+    <div class="escalations">
+
+      <div class="esc-card">
+        <span class="esc-num">01</span>
+        <div>
+          <div class="esc-title">Urgent pop-up request</div>
+          Communicate as soon as it's raised. Explain the impact to planned work in your daily standup thread or meeting. Escalate to Jo if you need support pushing things back.
+        </div>
+      </div>
+
+      <div class="esc-card">
+        <span class="esc-num">02</span>
+        <div>
+          <div class="esc-title">External dependency delay</div>
+          Log the blocker clearly on the ticket and call it out in your daily standup thread. Don't let it sit silently.
+        </div>
+      </div>
+
+      <div class="esc-card">
+        <span class="esc-num">03</span>
+        <div>
+          <div class="esc-title">Ticket taking longer than expected</div>
+          <strong>50%+ over estimate:</strong> flag it in your standup thread with context — what's the blocker, do you need support, what's the new timeline?<br><br>
+          <strong>Doubling or more:</strong> stop and reassess. The ticket likely needs to be broken down, re-estimated, or deprioritized. Loop in Jo.
+        </div>
+      </div>
+
+      <div class="esc-card">
+        <span class="esc-num">04</span>
+        <div>
+          <div class="esc-title">Planned PTO</div>
+          Account for it before the sprint starts — plan fewer points for yourself upfront. PTO is not a retroactive explanation for incomplete work at sprint end.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // Highlight active nav item on scroll
+  const sections = document.querySelectorAll('.section');
+  const navLinks = document.querySelectorAll('nav a');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`nav a[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>
