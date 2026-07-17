@@ -392,25 +392,63 @@ function ManageTagsModal({ allTags, onClose, onSave }) {
   );
 }
 
-// ─── RefCard ──────────────────────────────────────────────────────────────────
-function RefCard({ item, onEdit, onDelete }) {
+// ─── SearchBar ────────────────────────────────────────────────────────────────
+function SearchBar({ value, onChange }) {
   return (
-    <div style={{...cS,flexDirection:"column",alignItems:"flex-start",gap:8,padding:"16px 18px"}}>
+    <div style={{position:"relative",marginBottom:14}}>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",pointerEvents:"none"}}>
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input placeholder="Search…" value={value} onChange={e=>onChange(e.target.value)} style={{...iS,paddingLeft:34,fontSize:14}}/>
+      {value && <button onClick={()=>onChange("")} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:T.textMuted,cursor:"pointer",fontSize:16,lineHeight:1}}>×</button>}
+    </div>
+  );
+}
+
+// ─── Tag colour palette ───────────────────────────────────────────────────────
+const TAG_PALETTES = [
+  {bg:"#EEF0FE",border:"#B8C0F8",text:"#3D4EC7",header:"#5B6AF0"},  // indigo
+  {bg:"#FEF3E8",border:"#F8C89A",text:"#9A4E10",header:"#E07A30"},  // orange
+  {bg:"#E8F8EF",border:"#9FD9B8",text:"#1A6640",header:"#2A9A5E"},  // green
+  {bg:"#FDE8F8",border:"#F0A8E8",text:"#8A1870",header:"#C030A0"},  // pink
+  {bg:"#E8F4FE",border:"#98C8F8",text:"#1048A0",header:"#2870D8"},  // blue
+  {bg:"#FEF8E0",border:"#F0D880",text:"#806010",header:"#C09020"},  // yellow
+  {bg:"#F0E8FE",border:"#C898F8",text:"#5A10A0",header:"#8040D0"},  // purple
+  {bg:"#FFE8E8",border:"#F8A8A8",text:"#901818",header:"#C83030"},  // red
+];
+const UNCATEGORISED_PALETTE = {bg:"#F5F2ED",border:"#D0C8BE",text:"#6A5E54",header:"#9A8E84"};
+function getTagPalette(tag, allTags) {
+  if (tag==="Uncategorised") return UNCATEGORISED_PALETTE;
+  const idx = allTags.indexOf(tag);
+  return TAG_PALETTES[idx % TAG_PALETTES.length];
+}
+
+// ─── Source badge colours ─────────────────────────────────────────────────────
+const SOURCE_COLORS = {
+  "To-Do":   {bg:"#EEF0FE",text:"#3D4EC7"},
+  "Manual":  {bg:"#E8F5EE",text:"#1A6640"},
+};
+function SourceBadge({ source }) {
+  if (!source) return null;
+  const c = SOURCE_COLORS[source] || {bg:"#F5F2ED",text:"#6A5E54"};
+  return <span style={{fontSize:11,fontWeight:600,borderRadius:20,padding:"2px 9px",background:c.bg,color:c.text,whiteSpace:"nowrap",flexShrink:0}}>{source}</span>;
+}
+
+// ─── RefCard ──────────────────────────────────────────────────────────────────
+function RefCard({ item, onEdit, onDelete, palette }) {
+  const p = palette || {bg:T.bgCard,border:T.border,text:T.text};
+  return (
+    <div style={{background:p.bg,border:`1px solid ${p.border}`,borderRadius:12,padding:"14px 16px",marginBottom:9,boxShadow:T.shadow}}>
       <div style={{display:"flex",width:"100%",alignItems:"center",gap:8}}>
         <Icon n="star" size={14}/>
-        <span style={{flex:1,fontSize:15,fontWeight:600}}>{item.title}</span>
+        <span style={{flex:1,fontSize:15,fontWeight:600,color:p.text}}>{item.title}</span>
         <span style={{fontSize:12,color:T.textMuted}}>{fmtDate(item.addedAt)}</span>
-        <button onClick={()=>onEdit(item)} style={iB(T.accentBg,T.accent)}><Icon n="edit" size={14}/></button>
-        <button onClick={()=>onDelete(item.id)} style={iB(T.redBg,T.red)}><Icon n="trash" size={14}/></button>
+        <button onClick={()=>onEdit(item)} style={iB(T.bgCard,T.accent)}><Icon n="edit" size={14}/></button>
+        <button onClick={()=>onDelete(item.id)} style={iB(T.bgCard,T.red)}><Icon n="trash" size={14}/></button>
       </div>
-      {item.tags?.length>0 && (
-        <div style={{display:"flex",gap:5,flexWrap:"wrap",paddingLeft:22}}>
-          {item.tags.map(t=><span key={t} style={{fontSize:11,borderRadius:20,padding:"2px 9px",background:T.accentBg,color:T.accent,fontWeight:500}}>{t}</span>)}
-        </div>
-      )}
-      {item.note && <span style={{fontSize:14,color:T.textSub,paddingLeft:22,whiteSpace:"pre-wrap",lineHeight:1.6}}>{item.note}</span>}
+      {item.note && <div style={{fontSize:14,color:T.textSub,paddingLeft:22,marginTop:6,whiteSpace:"pre-wrap",lineHeight:1.6}}>{item.note}</div>}
       {item.url && (
-        <a href={item.url} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,marginLeft:22,background:T.accentBg,border:`1px solid ${T.accent}30`,borderRadius:8,padding:"7px 14px",color:T.accent,fontSize:14,fontWeight:500,textDecoration:"none",maxWidth:"calc(100% - 22px)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+        <a href={item.url} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,marginLeft:22,marginTop:6,background:"rgba(255,255,255,0.7)",border:`1px solid ${p.border}`,borderRadius:8,padding:"6px 12px",color:p.text,fontSize:13,fontWeight:500,textDecoration:"none",maxWidth:"calc(100% - 22px)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           {item.url.replace(/^https?:\/\//,"").replace(/\/$/,"")}
         </a>
@@ -419,54 +457,46 @@ function RefCard({ item, onEdit, onDelete }) {
   );
 }
 
-// ─── SearchBar ────────────────────────────────────────────────────────────────
-function SearchBar({ value, onChange }) {
-  return (
-    <div style={{position:"relative",marginBottom:14}}>
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",pointerEvents:"none"}}>
-        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-      </svg>
-      <input
-        placeholder="Search…"
-        value={value}
-        onChange={e=>onChange(e.target.value)}
-        style={{...iS,paddingLeft:34,fontSize:14}}
-      />
-      {value && <button onClick={()=>onChange("")} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:T.textMuted,cursor:"pointer",fontSize:16,lineHeight:1}}>×</button>}
-    </div>
-  );
-}
-
-// ─── RefsTab — grouped by tag, with search ────────────────────────────────────
+// ─── RefsTab — coloured groups, sort within group, search ─────────────────────
 const DEFAULT_TAGS = ["Team Planning","Manager Lessons & Hints","Team Member Development","Other Learning Materials"];
 
 function RefsTab({ items, allTags, onUpdateTags, onEdit, onDelete, onAdd }) {
   const [search, setSearch] = useState("");
   const [manageTags, setManageTags] = useState(false);
+  const [groupSort, setGroupSort] = useState({}); // {tagName: "newest"|"oldest"|"az"|"za"}
 
-  // Seed default tags if none exist yet
   const effectiveTags = allTags.length > 0 ? allTags : DEFAULT_TAGS;
-
   const q = search.toLowerCase();
+
   const filtered = items.filter(r =>
     !q || r.title.toLowerCase().includes(q) || (r.note||"").toLowerCase().includes(q) || (r.url||"").toLowerCase().includes(q)
   );
 
-  // Group by tag — each item appears under each of its tags; untagged goes to "Uncategorised"
   const grouped = {};
   effectiveTags.forEach(t => { grouped[t] = []; });
   grouped["Uncategorised"] = [];
-
   filtered.forEach(item => {
     const itemTags = (item.tags||[]).filter(t => effectiveTags.includes(t));
-    if (itemTags.length === 0) {
-      grouped["Uncategorised"].push(item);
-    } else {
-      itemTags.forEach(t => { if (grouped[t]) grouped[t].push(item); });
-    }
+    if (itemTags.length === 0) grouped["Uncategorised"].push(item);
+    else itemTags.forEach(t => { if (grouped[t]) grouped[t].push(item); });
   });
 
+  const sortGroup = (arr, tag) => {
+    const s = groupSort[tag] || "newest";
+    return [...arr].sort((a,b) => {
+      if (s==="newest") return new Date(b.addedAt)-new Date(a.addedAt);
+      if (s==="oldest") return new Date(a.addedAt)-new Date(b.addedAt);
+      if (s==="az") return a.title.localeCompare(b.title);
+      if (s==="za") return b.title.localeCompare(a.title);
+      return 0;
+    });
+  };
+
   const groupOrder = [...effectiveTags, "Uncategorised"];
+  const SortBtn = ({tag, val, label}) => {
+    const active = (groupSort[tag]||"newest")===val;
+    return <button onClick={()=>setGroupSort(g=>({...g,[tag]:val}))} style={{fontSize:11,padding:"2px 8px",borderRadius:20,border:`1px solid ${active?"rgba(0,0,0,0.2)":"rgba(0,0,0,0.08)"}`,background:active?"rgba(0,0,0,0.1)":"transparent",cursor:"pointer",color:"inherit",fontWeight:active?700:400}}>{label}</button>;
+  };
 
   return (
     <div>
@@ -481,16 +511,26 @@ function RefsTab({ items, allTags, onUpdateTags, onEdit, onDelete, onAdd }) {
       {items.length===0 && <Empty text="Saved references will appear here."/>}
       {items.length>0 && filtered.length===0 && <Empty text={`No results for "${search}".`}/>}
       {groupOrder.map(tag => {
-        const group = grouped[tag];
-        if (!group?.length) return null;
+        const group = sortGroup(grouped[tag]||[], tag);
+        if (!group.length) return null;
+        const pal = getTagPalette(tag, effectiveTags);
         return (
-          <div key={tag} style={{marginBottom:28}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-              <div style={{fontSize:12,fontWeight:700,letterSpacing:"0.08em",color:T.accent,textTransform:"uppercase",background:T.accentBg,borderRadius:6,padding:"3px 10px"}}>{tag}</div>
-              <div style={{flex:1,height:1,background:T.border}}/>
-              <span style={{fontSize:12,color:T.textMuted}}>{group.length} item{group.length!==1?"s":""}</span>
+          <div key={tag} style={{marginBottom:28,borderRadius:14,overflow:"hidden",border:`1px solid ${pal.border}`,boxShadow:T.shadow}}>
+            {/* Group header */}
+            <div style={{background:pal.header,padding:"10px 16px",display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:13,fontWeight:700,color:"#fff",letterSpacing:"0.04em",flex:1}}>{tag}</span>
+              <span style={{fontSize:12,color:"rgba(255,255,255,0.75)",marginRight:8}}>{group.length} item{group.length!==1?"s":""}</span>
+              <div style={{display:"flex",gap:4,color:"rgba(255,255,255,0.9)"}}>
+                <SortBtn tag={tag} val="newest" label="Newest"/>
+                <SortBtn tag={tag} val="oldest" label="Oldest"/>
+                <SortBtn tag={tag} val="az" label="A→Z"/>
+                <SortBtn tag={tag} val="za" label="Z→A"/>
+              </div>
             </div>
-            {group.map(item=><RefCard key={item.id} item={item} onEdit={onEdit} onDelete={onDelete}/>)}
+            {/* Cards */}
+            <div style={{background:pal.bg,padding:"12px 12px 4px"}}>
+              {group.map(item=><RefCard key={item.id} item={item} onEdit={onEdit} onDelete={onDelete} palette={pal}/>)}
+            </div>
           </div>
         );
       })}
@@ -499,25 +539,33 @@ function RefsTab({ items, allTags, onUpdateTags, onEdit, onDelete, onAdd }) {
   );
 }
 
-// ─── ArchiveTab — by date, tag filter, search ─────────────────────────────────
+// ─── ArchiveTab — by date, source badge, tag filter, search ───────────────────
+const ARCHIVE_SOURCE_COLORS = [
+  {bg:"#EEF0FE",border:"#B8C0F8",text:"#3D4EC7"},
+  {bg:"#FEF3E8",border:"#F8C89A",text:"#9A4E10"},
+  {bg:"#E8F8EF",border:"#9FD9B8",text:"#1A6640"},
+  {bg:"#FDE8F8",border:"#F0A8E8",text:"#8A1870"},
+  {bg:"#FEF8E0",border:"#F0D880",text:"#806010"},
+];
 function ArchiveTab({ items, allTags, onUpdateTags, onTagItem, onDelete }) {
   const [activeTag, setActiveTag] = useState(null);
   const [search, setSearch] = useState("");
   const [manageTags, setManageTags] = useState(false);
   const [taggingId, setTaggingId] = useState(null);
 
+  // Build a stable colour map for sources
+  const allSources = [...new Set(items.map(i=>i.source||"").filter(Boolean))];
+  const sourceColorMap = {};
+  allSources.forEach((s,i)=>{ sourceColorMap[s] = ARCHIVE_SOURCE_COLORS[i%ARCHIVE_SOURCE_COLORS.length]; });
+
   const q = search.toLowerCase();
-
-  // Sort newest-first by archivedAt
   const sorted = [...items].sort((a,b)=>new Date(b.archivedAt)-new Date(a.archivedAt));
-
   const filtered = sorted.filter(r => {
     const matchTag = activeTag===null || (r.tags||[]).includes(activeTag);
     const matchSearch = !q || (r.text||"").toLowerCase().includes(q);
     return matchTag && matchSearch;
   });
 
-  // Group by date bucket
   const now = new Date(); now.setHours(0,0,0,0);
   const grouped = {};
   filtered.forEach(item => {
@@ -540,21 +588,27 @@ function ArchiveTab({ items, allTags, onUpdateTags, onTagItem, onDelete }) {
         return (
           <div key={bucket} style={{marginBottom:24}}>
             <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.1em",color:T.textMuted,textTransform:"uppercase",marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${T.border}`}}>{bucket}</div>
-            {grouped[bucket].map(item=>(
-              <div key={item.id} style={{...cS,opacity:0.85,flexWrap:"wrap",gap:6}}>
-                <div style={{flex:1,minWidth:0}}>
-                  <RichText text={item.text} style={{fontSize:15,textDecoration:"line-through",color:T.textMuted}}/>
-                  {item.tags?.length>0 && (
-                    <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:5}}>
-                      {item.tags.map(t=><span key={t} style={{fontSize:11,borderRadius:20,padding:"2px 9px",background:T.accentBg,color:T.accent,fontWeight:500}}>{t}</span>)}
+            {grouped[bucket].map(item=>{
+              const sc = item.source ? (sourceColorMap[item.source]||ARCHIVE_SOURCE_COLORS[0]) : null;
+              return (
+                <div key={item.id} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderLeft:`4px solid ${sc?sc.text:T.border}`,borderRadius:12,padding:"12px 14px",marginBottom:9,boxShadow:T.shadow,opacity:0.9}}>
+                  <div style={{display:"flex",alignItems:"flex-start",gap:8,flexWrap:"wrap"}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <RichText text={item.text} style={{fontSize:15,textDecoration:"line-through",color:T.textMuted,lineHeight:1.5}}/>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:6,alignItems:"center"}}>
+                        {item.source && <span style={{fontSize:11,fontWeight:600,borderRadius:20,padding:"2px 9px",background:sc.bg,color:sc.text,border:`1px solid ${sc.border}`}}>{item.source}</span>}
+                        {(item.tags||[]).map(t=><span key={t} style={{fontSize:11,borderRadius:20,padding:"2px 9px",background:T.accentBg,color:T.accent,fontWeight:500}}>{t}</span>)}
+                      </div>
                     </div>
-                  )}
+                    <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
+                      <span style={{fontSize:12,color:T.textMuted}}>{fmtDate(item.archivedAt)}</span>
+                      <button onClick={()=>setTaggingId(item.id)} title="Tag" style={iB(T.accentBg,T.accent)}><span style={{fontSize:13}}>🏷</span></button>
+                      <button onClick={()=>onDelete(item.id)} title="Delete" style={iB(T.redBg,T.red)}><Icon n="trash" size={14}/></button>
+                    </div>
+                  </div>
                 </div>
-                <span style={{fontSize:12,color:T.textMuted,flexShrink:0}}>{fmtDate(item.archivedAt)}</span>
-                <button onClick={()=>setTaggingId(item.id)} title="Tag" style={iB(T.accentBg,T.accent)}><span style={{fontSize:13}}>🏷</span></button>
-                <button onClick={()=>onDelete(item.id)} title="Delete" style={iB(T.redBg,T.red)}><Icon n="trash" size={14}/></button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         );
       })}
@@ -709,7 +763,7 @@ function App() {
     update(d=>{
       const todos=d.todos.filter(t=>t.id!==item.id);
       let archive=d.archive, refs=d.refs;
-      if(action==="archive"||action==="ref") archive=[...archive,{...item,archivedAt:new Date().toISOString()}];
+      if(action==="archive"||action==="ref") archive=[...archive,{...item,archivedAt:new Date().toISOString(),source:"To-Do"}];
       if(action==="ref") refs=[...refs,{id:uid(),title:item.text,url:url||"",note:note||"",addedAt:new Date().toISOString()}];
       return {...d,todos,archive,refs};
     });
@@ -733,6 +787,33 @@ function App() {
     {id:"refs",label:"Reference",icon:"ref"},
   ];
 
+  const exportData = () => {
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `jos-list-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const importData = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if (parsed && typeof parsed === "object") {
+          const merged = {...DEFAULT, ...parsed};
+          save(merged); setData(merged);
+          alert("✅ Backup restored successfully!");
+        }
+      } catch { alert("❌ Could not read that file — make sure it's a valid Jo's List backup."); }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
   return (
     <div style={{background:T.bg,minHeight:"100vh",fontFamily:"'Inter',system-ui,sans-serif",color:T.text}}>
       {/* Header */}
@@ -740,7 +821,12 @@ function App() {
         <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:18}}>
           <span style={{fontSize:22,fontWeight:700,letterSpacing:-0.5}}>Jo's List</span>
           {totalOverdue>0 && <span style={{background:T.redBg,color:T.red,fontSize:12,borderRadius:20,padding:"2px 11px",fontWeight:600}}>{totalOverdue} overdue</span>}
-          <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+          <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
+            <button onClick={exportData} title="Download backup" style={{background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,color:T.textSub,fontSize:12,padding:"5px 11px",cursor:"pointer"}}>💾 Backup</button>
+            <label title="Restore from backup" style={{background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,color:T.textSub,fontSize:12,padding:"5px 11px",cursor:"pointer"}}>
+              📂 Restore
+              <input type="file" accept=".json" onChange={importData} style={{display:"none"}}/>
+            </label>
             <button onClick={()=>setShowChangePin(true)} title="Change PIN" style={{background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,color:T.textSub,fontSize:12,padding:"5px 11px",cursor:"pointer"}}>🔑 PIN</button>
             <button onClick={()=>setUnlocked(false)} title="Lock" style={{background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,color:T.textSub,fontSize:12,padding:"5px 11px",cursor:"pointer"}}>🔒 Lock</button>
           </div>
