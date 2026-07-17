@@ -21,6 +21,10 @@ const { useState, useEffect, useCallback, useRef } = React;
 
 // ─── localStorage ─────────────────────────────────────────────────────────────
 const KEY = "jos-list-v1";
+const PIN_KEY = "jos-list-pin";
+const DEFAULT_PIN = "1234";
+const getPin = () => localStorage.getItem(PIN_KEY) || DEFAULT_PIN;
+const setPin = (p) => localStorage.setItem(PIN_KEY, p);
 const load = () => { try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; } catch { return null; } };
 const save = (d) => { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch {} };
 const DEFAULT = { recurring:[], todos:[], talking:[], archive:[], refs:[] };
@@ -312,10 +316,111 @@ function RefForm({ onSave, onClose, existing }) {
   );
 }
 
+// ─── PIN Lock Screen ──────────────────────────────────────────────────────────
+function PinScreen({ onUnlock }) {
+  const [entered, setEntered] = useState("");
+  const [error, setError] = useState(false);
+  const [shake, setShake] = useState(false);
+
+  const press = (d) => {
+    if (entered.length >= 4) return;
+    const next = entered + d;
+    setEntered(next);
+    setError(false);
+    if (next.length === 4) {
+      setTimeout(() => {
+        if (next === getPin()) {
+          onUnlock();
+        } else {
+          setShake(true);
+          setError(true);
+          setTimeout(() => { setEntered(""); setShake(false); }, 600);
+        }
+      }, 100);
+    }
+  };
+  const del = () => { setEntered(e => e.slice(0,-1)); setError(false); };
+
+  const dots = [0,1,2,3].map(i => (
+    <div key={i} style={{width:14,height:14,borderRadius:"50%",background:i<entered.length?(error?T.red:T.accent):T.border,transition:"background 0.15s"}}/>
+  ));
+
+  const numpad = [[1,2,3],[4,5,6],[7,8,9]];
+
+  return (
+    <div style={{minHeight:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Inter',system-ui,sans-serif"}}>
+      <div style={{textAlign:"center",width:280}}>
+        <div style={{fontSize:28,marginBottom:6}}>🔒</div>
+        <div style={{fontSize:20,fontWeight:700,color:T.text,marginBottom:4}}>Jo's List</div>
+        <div style={{fontSize:14,color:T.textMuted,marginBottom:32}}>Enter your PIN</div>
+
+        {/* Dots */}
+        <div style={{display:"flex",justifyContent:"center",gap:16,marginBottom:36,animation:shake?"shake 0.4s":"none"}}>
+          {dots}
+        </div>
+
+        {/* Numpad */}
+        {numpad.map((row,ri)=>(
+          <div key={ri} style={{display:"flex",justifyContent:"center",gap:12,marginBottom:12}}>
+            {row.map(n=>(
+              <button key={n} onClick={()=>press(String(n))} style={{width:72,height:72,borderRadius:"50%",background:T.bgCard,border:`1px solid ${T.border}`,fontSize:22,fontWeight:500,color:T.text,cursor:"pointer",boxShadow:T.shadow,transition:"background 0.1s"}}>
+                {n}
+              </button>
+            ))}
+          </div>
+        ))}
+        <div style={{display:"flex",justifyContent:"center",gap:12}}>
+          <div style={{width:72,height:72}}/>
+          <button onClick={()=>press("0")} style={{width:72,height:72,borderRadius:"50%",background:T.bgCard,border:`1px solid ${T.border}`,fontSize:22,fontWeight:500,color:T.text,cursor:"pointer",boxShadow:T.shadow}}>0</button>
+          <button onClick={del} style={{width:72,height:72,borderRadius:"50%",background:"none",border:"none",fontSize:20,color:T.textMuted,cursor:"pointer"}}>⌫</button>
+        </div>
+
+        {error && <div style={{marginTop:20,fontSize:13,color:T.red,fontWeight:500}}>Incorrect PIN — try again</div>}
+        <div style={{marginTop:16,fontSize:12,color:T.textMuted}}>Default PIN is 1234</div>
+      </div>
+      <style>{`@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}`}</style>
+    </div>
+  );
+}
+
+// ─── Change PIN Modal ─────────────────────────────────────────────────────────
+function ChangePinModal({ onClose }) {
+  const [current,setCurrent]=useState("");
+  const [next1,setNext1]=useState("");
+  const [next2,setNext2]=useState("");
+  const [err,setErr]=useState("");
+  const [ok,setOk]=useState(false);
+  const handle = () => {
+    if (current !== getPin()) { setErr("Current PIN is incorrect."); return; }
+    if (!/^\d{4}$/.test(next1)) { setErr("New PIN must be exactly 4 digits."); return; }
+    if (next1 !== next2) { setErr("PINs don't match."); return; }
+    setPin(next1); setOk(true); setErr("");
+    setTimeout(onClose, 1000);
+  };
+  return (
+    <Modal title="Change PIN" onClose={onClose}>
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        {ok
+          ? <div style={{textAlign:"center",padding:"20px 0",color:T.green,fontWeight:600,fontSize:16}}>✓ PIN updated!</div>
+          : <>
+              <input type="password" inputMode="numeric" maxLength={4} placeholder="Current PIN" value={current} onChange={e=>setCurrent(e.target.value.replace(/\D/g,""))} style={{...iS,letterSpacing:8,fontSize:20,textAlign:"center"}}/>
+              <input type="password" inputMode="numeric" maxLength={4} placeholder="New PIN" value={next1} onChange={e=>setNext1(e.target.value.replace(/\D/g,""))} style={{...iS,letterSpacing:8,fontSize:20,textAlign:"center"}}/>
+              <input type="password" inputMode="numeric" maxLength={4} placeholder="Confirm new PIN" value={next2} onChange={e=>setNext2(e.target.value.replace(/\D/g,""))} style={{...iS,letterSpacing:8,fontSize:20,textAlign:"center"}}/>
+              {err && <div style={{fontSize:13,color:T.red}}>{err}</div>}
+              <button onClick={handle} style={{background:T.accent,color:"#fff",border:"none",borderRadius:8,padding:"11px",cursor:"pointer",fontWeight:600,fontSize:15}}>Update PIN</button>
+            </>
+        }
+      </div>
+    </Modal>
+  );
+}
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 function App() {
   const [data,setData]=useState(DEFAULT);
   const [loaded,setLoaded]=useState(false);
+  const [unlocked,setUnlocked]=useState(false);
+  const [showChangePin,setShowChangePin]=useState(false);
   const [tab,setTab]=useState("todos");
   const [modal,setModal]=useState(null);
   const [checkoutItem,setCheckoutItem]=useState(null);
@@ -328,6 +433,8 @@ function App() {
   const update = useCallback((fn)=>{ setData(prev=>{ const next=fn(prev); save(next); return next; }); },[]);
 
   if (!loaded) return <div style={{background:T.bg,minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",color:T.textMuted}}>Loading…</div>;
+  if (!unlocked) return <PinScreen onUnlock={()=>setUnlocked(true)}/>;
+
 
   const saveTodo = (item) => update(d=>{ const ex=d.todos.find(t=>t.id===item.id); return {...d,todos:ex?d.todos.map(t=>t.id===item.id?item:t):[...d.todos,item]}; });
   const reorderTodos = (next) => update(d=>({...d,todos:next}));
@@ -368,6 +475,10 @@ function App() {
         <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:18}}>
           <span style={{fontSize:22,fontWeight:700,letterSpacing:-0.5}}>Jo's List</span>
           {totalOverdue>0 && <span style={{background:T.redBg,color:T.red,fontSize:12,borderRadius:20,padding:"2px 11px",fontWeight:600}}>{totalOverdue} overdue</span>}
+          <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+            <button onClick={()=>setShowChangePin(true)} title="Change PIN" style={{background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,color:T.textSub,fontSize:12,padding:"5px 11px",cursor:"pointer"}}>🔑 PIN</button>
+            <button onClick={()=>setUnlocked(false)} title="Lock" style={{background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,color:T.textSub,fontSize:12,padding:"5px 11px",cursor:"pointer"}}>🔒 Lock</button>
+          </div>
         </div>
         <div style={{display:"flex",gap:2,flexWrap:"wrap"}}>
           {tabs.map(t=>(
@@ -524,6 +635,7 @@ function App() {
         )}
       </div>
 
+      {showChangePin && <ChangePinModal onClose={()=>setShowChangePin(false)}/>}
       {modal?.type==="todo"      && <TodoForm      onClose={()=>setModal(null)} onSave={saveTodo}/>}
       {modal?.type==="recurring" && <RecurringForm onClose={()=>setModal(null)} onSave={saveRecurring}/>}
       {modal?.type==="talking"   && <TalkingForm   onClose={()=>setModal(null)} onAdd={saveTalking}/>}
