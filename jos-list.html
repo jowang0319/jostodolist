@@ -27,7 +27,7 @@ const getPin = () => localStorage.getItem(PIN_KEY) || DEFAULT_PIN;
 const setPin = (p) => localStorage.setItem(PIN_KEY, p);
 const load = () => { try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; } catch { return null; } };
 const save = (d) => { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch {} };
-const DEFAULT = { recurring:[], todos:[], talking:[], archive:[], refs:[] };
+const DEFAULT = { recurring:[], todos:[], talking:[], archive:[], refs:[], tags:[] };
 let _id = Date.now();
 const uid = () => String(++_id);
 
@@ -294,14 +294,43 @@ function TalkingForm({ onAdd, onClose, existing }) {
   );
 }
 
+// ─── TagPicker (inline) ───────────────────────────────────────────────────────
+function TagPicker({ allTags, selected, onChange }) {
+  const [newTag, setNewTag] = useState("");
+  const toggle = (t) => onChange(selected.includes(t) ? selected.filter(x=>x!==t) : [...selected, t]);
+  const add = () => {
+    const t = newTag.trim();
+    if (!t || allTags.includes(t)) { setNewTag(""); return; }
+    onChange([...selected, t]);
+    setNewTag("");
+  };
+  return (
+    <div>
+      <div style={{fontSize:13,color:T.textSub,marginBottom:6}}>Tags <span style={{color:T.textMuted}}>(optional)</span></div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
+        {allTags.map(t=>(
+          <button key={t} type="button" onClick={()=>toggle(t)} style={{borderRadius:20,padding:"3px 12px",fontSize:13,cursor:"pointer",border:`1px solid ${selected.includes(t)?T.accent:T.border}`,background:selected.includes(t)?T.accentBg:"none",color:selected.includes(t)?T.accent:T.textSub,fontWeight:selected.includes(t)?600:400}}>
+            {t}
+          </button>
+        ))}
+      </div>
+      <div style={{display:"flex",gap:6}}>
+        <input placeholder="New tag…" value={newTag} onChange={e=>setNewTag(e.target.value)} onKeyDown={e=>e.key==="Enter"&&(e.preventDefault(),add())} style={{...iS,flex:1,fontSize:13,padding:"6px 10px"}}/>
+        <button type="button" onClick={add} style={{background:T.accentBg,border:`1px solid ${T.accent}40`,borderRadius:8,color:T.accent,padding:"6px 12px",cursor:"pointer",fontSize:13,fontWeight:600}}>+ Add</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── RefForm ─────────────────────────────────────────────────────────────────
-function RefForm({ onSave, onClose, existing }) {
+function RefForm({ onSave, onClose, existing, allTags }) {
   const [title,setTitle]=useState(existing?.title||"");
   const [url,setUrl]=useState(existing?.url||"");
   const [note,setNote]=useState(existing?.note||"");
+  const [tags,setTags]=useState(existing?.tags||[]);
   const handleSave = () => {
     if (!title.trim()) return;
-    onSave({id:existing?.id||uid(),title:title.trim(),url,note,addedAt:existing?.addedAt||new Date().toISOString()});
+    onSave({id:existing?.id||uid(),title:title.trim(),url,note,tags,addedAt:existing?.addedAt||new Date().toISOString()});
     onClose();
   };
   return (
@@ -310,9 +339,237 @@ function RefForm({ onSave, onClose, existing }) {
         <input autoFocus placeholder="Title" value={title} onChange={e=>setTitle(e.target.value)} style={iS}/>
         <input placeholder="URL (optional)" value={url} onChange={e=>setUrl(e.target.value)} style={iS}/>
         <textarea placeholder="Note (optional)" value={note} onChange={e=>setNote(e.target.value)} rows={3} style={{...iS,resize:"vertical",lineHeight:1.6}}/>
+        <TagPicker allTags={allTags} selected={tags} onChange={setTags}/>
         <button disabled={!title.trim()} onClick={handleSave} style={{background:T.accent,color:"#fff",border:"none",borderRadius:8,padding:"11px",cursor:"pointer",fontWeight:600,fontSize:15}}>{existing?"Save changes":"Save"}</button>
       </div>
     </Modal>
+  );
+}
+
+// ─── Tag management helpers ───────────────────────────────────────────────────
+function TagFilterBar({ allTags, active, onChange, onManage }) {
+  return (
+    <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:20,alignItems:"center"}}>
+      <button onClick={()=>onChange(null)} style={{borderRadius:20,padding:"4px 14px",fontSize:13,cursor:"pointer",border:`1px solid ${active===null?T.accent:T.border}`,background:active===null?T.accentBg:"none",color:active===null?T.accent:T.textSub,fontWeight:active===null?600:400}}>
+        All
+      </button>
+      {allTags.map(t=>(
+        <button key={t} onClick={()=>onChange(active===t?null:t)} style={{borderRadius:20,padding:"4px 14px",fontSize:13,cursor:"pointer",border:`1px solid ${active===t?T.accent:T.border}`,background:active===t?T.accentBg:"none",color:active===t?T.accent:T.textSub,fontWeight:active===t?600:400}}>
+          {t}
+        </button>
+      ))}
+      <button onClick={onManage} style={{borderRadius:20,padding:"4px 12px",fontSize:12,cursor:"pointer",border:`1px dashed ${T.border}`,background:"none",color:T.textMuted,marginLeft:4}}>
+        ✎ Manage tags
+      </button>
+    </div>
+  );
+}
+
+function ManageTagsModal({ allTags, onClose, onSave }) {
+  const [tags, setTags] = useState([...allTags]);
+  const [newTag, setNewTag] = useState("");
+  const add = () => { const t=newTag.trim(); if(t&&!tags.includes(t)){setTags([...tags,t]);} setNewTag(""); };
+  const remove = (t) => setTags(tags.filter(x=>x!==t));
+  return (
+    <Modal title="Manage tags" onClose={onClose}>
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          {tags.map(t=>(
+            <div key={t} style={{display:"flex",alignItems:"center",gap:4,borderRadius:20,padding:"4px 10px 4px 14px",fontSize:13,background:T.accentBg,border:`1px solid ${T.accent}40`,color:T.accent}}>
+              {t}
+              <button onClick={()=>remove(t)} style={{background:"none",border:"none",color:T.accent,cursor:"pointer",padding:"0 2px",fontSize:14,lineHeight:1}}>×</button>
+            </div>
+          ))}
+          {tags.length===0 && <span style={{fontSize:13,color:T.textMuted}}>No tags yet</span>}
+        </div>
+        <div style={{display:"flex",gap:6}}>
+          <input placeholder="New tag…" value={newTag} onChange={e=>setNewTag(e.target.value)} onKeyDown={e=>e.key==="Enter"&&(e.preventDefault(),add())} style={{...iS,flex:1,fontSize:13}}/>
+          <button onClick={add} style={{background:T.accentBg,border:`1px solid ${T.accent}40`,borderRadius:8,color:T.accent,padding:"8px 14px",cursor:"pointer",fontWeight:600}}>+ Add</button>
+        </div>
+        <button onClick={()=>onSave(tags)} style={{background:T.accent,color:"#fff",border:"none",borderRadius:8,padding:"11px",cursor:"pointer",fontWeight:600,fontSize:15}}>Save</button>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── RefCard ──────────────────────────────────────────────────────────────────
+function RefCard({ item, onEdit, onDelete }) {
+  return (
+    <div style={{...cS,flexDirection:"column",alignItems:"flex-start",gap:8,padding:"16px 18px"}}>
+      <div style={{display:"flex",width:"100%",alignItems:"center",gap:8}}>
+        <Icon n="star" size={14}/>
+        <span style={{flex:1,fontSize:15,fontWeight:600}}>{item.title}</span>
+        <span style={{fontSize:12,color:T.textMuted}}>{fmtDate(item.addedAt)}</span>
+        <button onClick={()=>onEdit(item)} style={iB(T.accentBg,T.accent)}><Icon n="edit" size={14}/></button>
+        <button onClick={()=>onDelete(item.id)} style={iB(T.redBg,T.red)}><Icon n="trash" size={14}/></button>
+      </div>
+      {item.tags?.length>0 && (
+        <div style={{display:"flex",gap:5,flexWrap:"wrap",paddingLeft:22}}>
+          {item.tags.map(t=><span key={t} style={{fontSize:11,borderRadius:20,padding:"2px 9px",background:T.accentBg,color:T.accent,fontWeight:500}}>{t}</span>)}
+        </div>
+      )}
+      {item.note && <span style={{fontSize:14,color:T.textSub,paddingLeft:22,whiteSpace:"pre-wrap",lineHeight:1.6}}>{item.note}</span>}
+      {item.url && (
+        <a href={item.url} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,marginLeft:22,background:T.accentBg,border:`1px solid ${T.accent}30`,borderRadius:8,padding:"7px 14px",color:T.accent,fontSize:14,fontWeight:500,textDecoration:"none",maxWidth:"calc(100% - 22px)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          {item.url.replace(/^https?:\/\//,"").replace(/\/$/,"")}
+        </a>
+      )}
+    </div>
+  );
+}
+
+// ─── SearchBar ────────────────────────────────────────────────────────────────
+function SearchBar({ value, onChange }) {
+  return (
+    <div style={{position:"relative",marginBottom:14}}>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",pointerEvents:"none"}}>
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input
+        placeholder="Search…"
+        value={value}
+        onChange={e=>onChange(e.target.value)}
+        style={{...iS,paddingLeft:34,fontSize:14}}
+      />
+      {value && <button onClick={()=>onChange("")} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:T.textMuted,cursor:"pointer",fontSize:16,lineHeight:1}}>×</button>}
+    </div>
+  );
+}
+
+// ─── RefsTab — grouped by tag, with search ────────────────────────────────────
+const DEFAULT_TAGS = ["Team Planning","Manager Lessons & Hints","Team Member Development","Other Learning Materials"];
+
+function RefsTab({ items, allTags, onUpdateTags, onEdit, onDelete, onAdd }) {
+  const [search, setSearch] = useState("");
+  const [manageTags, setManageTags] = useState(false);
+
+  // Seed default tags if none exist yet
+  const effectiveTags = allTags.length > 0 ? allTags : DEFAULT_TAGS;
+
+  const q = search.toLowerCase();
+  const filtered = items.filter(r =>
+    !q || r.title.toLowerCase().includes(q) || (r.note||"").toLowerCase().includes(q) || (r.url||"").toLowerCase().includes(q)
+  );
+
+  // Group by tag — each item appears under each of its tags; untagged goes to "Uncategorised"
+  const grouped = {};
+  effectiveTags.forEach(t => { grouped[t] = []; });
+  grouped["Uncategorised"] = [];
+
+  filtered.forEach(item => {
+    const itemTags = (item.tags||[]).filter(t => effectiveTags.includes(t));
+    if (itemTags.length === 0) {
+      grouped["Uncategorised"].push(item);
+    } else {
+      itemTags.forEach(t => { if (grouped[t]) grouped[t].push(item); });
+    }
+  });
+
+  const groupOrder = [...effectiveTags, "Uncategorised"];
+
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,gap:8,flexWrap:"wrap"}}>
+        <span style={{fontSize:16,fontWeight:600,color:T.text}}>Reference</span>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setManageTags(true)} style={{background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,color:T.textSub,fontSize:13,padding:"7px 13px",cursor:"pointer"}}>✎ Manage tags</button>
+          <button onClick={onAdd} style={aB}>+ Add reference</button>
+        </div>
+      </div>
+      <SearchBar value={search} onChange={setSearch}/>
+      {items.length===0 && <Empty text="Saved references will appear here."/>}
+      {items.length>0 && filtered.length===0 && <Empty text={`No results for "${search}".`}/>}
+      {groupOrder.map(tag => {
+        const group = grouped[tag];
+        if (!group?.length) return null;
+        return (
+          <div key={tag} style={{marginBottom:28}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+              <div style={{fontSize:12,fontWeight:700,letterSpacing:"0.08em",color:T.accent,textTransform:"uppercase",background:T.accentBg,borderRadius:6,padding:"3px 10px"}}>{tag}</div>
+              <div style={{flex:1,height:1,background:T.border}}/>
+              <span style={{fontSize:12,color:T.textMuted}}>{group.length} item{group.length!==1?"s":""}</span>
+            </div>
+            {group.map(item=><RefCard key={item.id} item={item} onEdit={onEdit} onDelete={onDelete}/>)}
+          </div>
+        );
+      })}
+      {manageTags && <ManageTagsModal allTags={effectiveTags} onClose={()=>setManageTags(false)} onSave={t=>{onUpdateTags(t);setManageTags(false);}}/>}
+    </div>
+  );
+}
+
+// ─── ArchiveTab — by date, tag filter, search ─────────────────────────────────
+function ArchiveTab({ items, allTags, onUpdateTags, onTagItem, onDelete }) {
+  const [activeTag, setActiveTag] = useState(null);
+  const [search, setSearch] = useState("");
+  const [manageTags, setManageTags] = useState(false);
+  const [taggingId, setTaggingId] = useState(null);
+
+  const q = search.toLowerCase();
+
+  // Sort newest-first by archivedAt
+  const sorted = [...items].sort((a,b)=>new Date(b.archivedAt)-new Date(a.archivedAt));
+
+  const filtered = sorted.filter(r => {
+    const matchTag = activeTag===null || (r.tags||[]).includes(activeTag);
+    const matchSearch = !q || (r.text||"").toLowerCase().includes(q);
+    return matchTag && matchSearch;
+  });
+
+  // Group by date bucket
+  const now = new Date(); now.setHours(0,0,0,0);
+  const grouped = {};
+  filtered.forEach(item => {
+    const d = new Date(item.archivedAt); d.setHours(0,0,0,0);
+    const diff = Math.round((now-d)/(1000*60*60*24));
+    const bucket = diff===0?"Today":diff===1?"Yesterday":diff<=7?"This week":diff<=30?"This month":"Older";
+    if (!grouped[bucket]) grouped[bucket]=[];
+    grouped[bucket].push(item);
+  });
+  const bucketOrder = ["Today","Yesterday","This week","This month","Older"];
+
+  return (
+    <div>
+      <SearchBar value={search} onChange={setSearch}/>
+      <TagFilterBar allTags={allTags} active={activeTag} onChange={setActiveTag} onManage={()=>setManageTags(true)}/>
+      {items.length===0 && <Empty text="Completed tasks will appear here."/>}
+      {items.length>0 && filtered.length===0 && <Empty text="No matching items."/>}
+      {bucketOrder.map(bucket=>{
+        if (!grouped[bucket]?.length) return null;
+        return (
+          <div key={bucket} style={{marginBottom:24}}>
+            <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.1em",color:T.textMuted,textTransform:"uppercase",marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${T.border}`}}>{bucket}</div>
+            {grouped[bucket].map(item=>(
+              <div key={item.id} style={{...cS,opacity:0.85,flexWrap:"wrap",gap:6}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <RichText text={item.text} style={{fontSize:15,textDecoration:"line-through",color:T.textMuted}}/>
+                  {item.tags?.length>0 && (
+                    <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:5}}>
+                      {item.tags.map(t=><span key={t} style={{fontSize:11,borderRadius:20,padding:"2px 9px",background:T.accentBg,color:T.accent,fontWeight:500}}>{t}</span>)}
+                    </div>
+                  )}
+                </div>
+                <span style={{fontSize:12,color:T.textMuted,flexShrink:0}}>{fmtDate(item.archivedAt)}</span>
+                <button onClick={()=>setTaggingId(item.id)} title="Tag" style={iB(T.accentBg,T.accent)}><span style={{fontSize:13}}>🏷</span></button>
+                <button onClick={()=>onDelete(item.id)} title="Delete" style={iB(T.redBg,T.red)}><Icon n="trash" size={14}/></button>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+      {taggingId && (()=>{
+        const item = items.find(i=>i.id===taggingId);
+        return (
+          <Modal title="Tag this item" onClose={()=>setTaggingId(null)}>
+            <div style={{marginBottom:10,fontSize:14,color:T.textSub,fontStyle:"italic"}}>"{item?.text}"</div>
+            <TagPicker allTags={allTags} selected={item?.tags||[]} onChange={tags=>onTagItem(taggingId,tags)}/>
+            <button onClick={()=>setTaggingId(null)} style={{background:T.accent,color:"#fff",border:"none",borderRadius:8,padding:"11px",cursor:"pointer",fontWeight:600,fontSize:15,width:"100%",marginTop:12}}>Done</button>
+          </Modal>
+        );
+      })()}
+      {manageTags && <ManageTagsModal allTags={allTags} onClose={()=>setManageTags(false)} onSave={t=>{onUpdateTags(t);setManageTags(false);}}/>}
+    </div>
   );
 }
 
@@ -429,7 +686,15 @@ function App() {
   const [editRecurring,setEditRecurring]=useState(null);
   const [editRef,setEditRef]=useState(null);
 
-  useEffect(()=>{ const d=load(); if(d) setData(d); setLoaded(true); },[]);
+  useEffect(()=>{
+    const d=load();
+    if(d) {
+      // seed default tags if none saved yet
+      if (!d.tags || d.tags.length===0) d.tags = [...DEFAULT_TAGS];
+      setData(d);
+    }
+    setLoaded(true);
+  },[]);
   const update = useCallback((fn)=>{ setData(prev=>{ const next=fn(prev); save(next); return next; }); },[]);
 
   if (!loaded) return <div style={{background:T.bg,minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",color:T.textMuted}}>Loading…</div>;
@@ -595,43 +860,25 @@ function App() {
 
         {/* ARCHIVE */}
         {tab==="archive" && (
-          <div>
-            {data.archive.length===0 && <Empty text="Completed tasks will appear here."/>}
-            {[...data.archive].reverse().map(item=>(
-              <div key={item.id} style={{...cS,opacity:0.6}}>
-                <RichText text={item.text} style={{flex:1,fontSize:15,textDecoration:"line-through",color:T.textMuted}}/>
-                <span style={{fontSize:12,color:T.textMuted,flexShrink:0}}>{fmtDate(item.archivedAt)}</span>
-              </div>
-            ))}
-          </div>
+          <ArchiveTab
+            items={data.archive}
+            allTags={data.tags||[]}
+            onUpdateTags={tags=>update(d=>({...d,tags}))}
+            onTagItem={(id,tags)=>update(d=>({...d,archive:d.archive.map(a=>a.id===id?{...a,tags}:a)}))}
+            onDelete={id=>update(d=>({...d,archive:d.archive.filter(a=>a.id!==id)}))}
+          />
         )}
 
         {/* REFERENCE */}
         {tab==="refs" && (
-          <div>
-            <div style={{display:"flex",justifyContent:"flex-end",marginBottom:22}}>
-              <button onClick={()=>setModal({type:"ref"})} style={aB}>+ Add reference</button>
-            </div>
-            {data.refs.length===0 && <Empty text="Saved references will appear here."/>}
-            {[...data.refs].reverse().map(item=>(
-              <div key={item.id} style={{...cS,flexDirection:"column",alignItems:"flex-start",gap:8,padding:"16px 18px"}}>
-                <div style={{display:"flex",width:"100%",alignItems:"center",gap:8}}>
-                  <Icon n="star" size={14}/>
-                  <span style={{flex:1,fontSize:15,fontWeight:600}}>{item.title}</span>
-                  <span style={{fontSize:12,color:T.textMuted}}>{fmtDate(item.addedAt)}</span>
-                  <button onClick={()=>setEditRef(item)} style={iB(T.accentBg,T.accent)}><Icon n="edit" size={14}/></button>
-                  <button onClick={()=>delRef(item.id)} style={iB(T.redBg,T.red)}><Icon n="trash" size={14}/></button>
-                </div>
-                {item.note && <span style={{fontSize:14,color:T.textSub,paddingLeft:22,whiteSpace:"pre-wrap",lineHeight:1.6}}>{item.note}</span>}
-                {item.url && (
-                  <a href={item.url} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,marginLeft:22,background:T.accentBg,border:`1px solid ${T.accent}30`,borderRadius:8,padding:"7px 14px",color:T.accent,fontSize:14,fontWeight:500,textDecoration:"none",maxWidth:"calc(100% - 22px)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    {item.url.replace(/^https?:\/\//,"").replace(/\/$/,"")}
-                  </a>
-                )}
-              </div>
-            ))}
-          </div>
+          <RefsTab
+            items={data.refs}
+            allTags={data.tags||[]}
+            onUpdateTags={tags=>update(d=>({...d,tags}))}
+            onEdit={item=>setEditRef(item)}
+            onDelete={id=>delRef(id)}
+            onAdd={()=>setModal({type:"ref"})}
+          />
         )}
       </div>
 
@@ -639,11 +886,11 @@ function App() {
       {modal?.type==="todo"      && <TodoForm      onClose={()=>setModal(null)} onSave={saveTodo}/>}
       {modal?.type==="recurring" && <RecurringForm onClose={()=>setModal(null)} onSave={saveRecurring}/>}
       {modal?.type==="talking"   && <TalkingForm   onClose={()=>setModal(null)} onAdd={saveTalking}/>}
-      {modal?.type==="ref"       && <RefForm       onClose={()=>setModal(null)} onSave={saveRef}/>}
+      {modal?.type==="ref"       && <RefForm       onClose={()=>setModal(null)} onSave={saveRef} allTags={data.tags||[]}/>}
       {editTodo      && <TodoForm      existing={editTodo}      onClose={()=>setEditTodo(null)}      onSave={item=>{saveTodo(item);setEditTodo(null);}}/>}
       {editRecurring && <RecurringForm existing={editRecurring} onClose={()=>setEditRecurring(null)} onSave={item=>{saveRecurring(item);setEditRecurring(null);}}/>}
       {editTalking   && <TalkingForm   existing={editTalking}   onClose={()=>setEditTalking(null)}   onAdd={item=>{saveTalking(item);setEditTalking(null);}}/>}
-      {editRef       && <RefForm       existing={editRef}       onClose={()=>setEditRef(null)}       onSave={item=>{saveRef(item);setEditRef(null);}}/>}
+      {editRef       && <RefForm       existing={editRef}       onClose={()=>setEditRef(null)}       onSave={item=>{saveRef(item);setEditRef(null);}} allTags={data.tags||[]}/>}
       {checkoutItem  && <CheckoutModal item={checkoutItem} onClose={()=>setCheckoutItem(null)} onArchive={()=>finishCheckout(checkoutItem,"archive")} onRef={(url,note)=>finishCheckout(checkoutItem,"ref",url,note)}/>}
     </div>
   );
